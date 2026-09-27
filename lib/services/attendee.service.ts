@@ -1,22 +1,31 @@
-'use server'
+import 'server-only'
 
-import { createClient } from '@/lib/supabase/server'
-import type { RegisterAttendeeInput, CheckInAttendeeInput } from '@/lib/validations'
+import { createAdminClient } from '@/lib/supabase/admin'
+import type { CheckInAttendeeInput, RegisterAttendeeInput } from '@/lib/validations'
+import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
+
+type AttendeeRow = Tables<'attendees'>
 
 export const attendeeService = {
-  async registerAttendee(input: RegisterAttendeeInput) {
-    const supabase = await createClient()
+  /**
+   * Registra un asistente. `input` debe venir ya validado con Zod
+   * (`registerAttendeeSchema`), esta capa no revalida.
+   */
+  async registerAttendee(input: RegisterAttendeeInput): Promise<AttendeeRow> {
+    const supabase = createAdminClient()
 
-    const { data, error } = await (supabase as any)
+    const attendeeData: TablesInsert<'attendees'> = {
+      event_id: input.event_id,
+      full_name: input.full_name,
+      email: input.email,
+      registered_via: input.registered_via,
+      checked_in: false,
+    }
+
+    const { data, error } = await supabase
       .from('attendees')
-      .insert([{
-        event_id: input.event_id,
-        full_name: input.full_name,
-        email: input.email,
-        registered_via: input.registered_via,
-        checked_in: false,
-      }])
-      .select()
+      .insert(attendeeData)
+      .select('*')
       .single()
 
     if (error) {
@@ -26,10 +35,10 @@ export const attendeeService = {
     return data
   },
 
-  async getAttendeesByEventId(eventId: string) {
-    const supabase = await createClient()
+  async getAttendeesByEventId(eventId: string): Promise<AttendeeRow[]> {
+    const supabase = createAdminClient()
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('attendees')
       .select('*')
       .eq('event_id', eventId)
@@ -39,21 +48,23 @@ export const attendeeService = {
       throw new Error(`Failed to fetch attendees: ${error.message}`)
     }
 
-    return data || []
+    return data
   },
 
-  async checkInAttendee(input: CheckInAttendeeInput) {
-    const supabase = await createClient()
+  async checkInAttendee(input: CheckInAttendeeInput): Promise<AttendeeRow> {
+    const supabase = createAdminClient()
 
-    const { data, error } = await (supabase as any)
+    const patch: TablesUpdate<'attendees'> = {
+      checked_in: true,
+      checked_in_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabase
       .from('attendees')
-      .update({
-        checked_in: true,
-        checked_in_at: new Date().toISOString(),
-      })
+      .update(patch)
       .eq('id', input.attendee_id)
       .eq('event_id', input.event_id)
-      .select()
+      .select('*')
       .single()
 
     if (error) {
@@ -63,10 +74,27 @@ export const attendeeService = {
     return data
   },
 
-  async getAttendeeByEmail(email: string, eventId: string) {
-    const supabase = await createClient()
+  async getAttendeeById(attendeeId: string, eventId: string): Promise<AttendeeRow> {
+    const supabase = createAdminClient()
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
+      .from('attendees')
+      .select('*')
+      .eq('id', attendeeId)
+      .eq('event_id', eventId)
+      .single()
+
+    if (error) {
+      throw new Error(`Failed to fetch attendee: ${error.message}`)
+    }
+
+    return data
+  },
+
+  async getAttendeeByEmail(email: string, eventId: string): Promise<AttendeeRow | null> {
+    const supabase = createAdminClient()
+
+    const { data, error } = await supabase
       .from('attendees')
       .select('*')
       .eq('email', email)
@@ -77,18 +105,22 @@ export const attendeeService = {
       throw new Error(`Failed to fetch attendee by email: ${error.message}`)
     }
 
-    return data || null
+    return data
   },
 
-  async updateAttendee(attendeeId: string, eventId: string, updates: any) {
-    const supabase = await createClient()
+  async updateAttendee(
+    attendeeId: string,
+    eventId: string,
+    updates: TablesUpdate<'attendees'>,
+  ): Promise<AttendeeRow> {
+    const supabase = createAdminClient()
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('attendees')
       .update(updates)
       .eq('id', attendeeId)
       .eq('event_id', eventId)
-      .select()
+      .select('*')
       .single()
 
     if (error) {
@@ -99,9 +131,9 @@ export const attendeeService = {
   },
 
   async deleteAttendee(attendeeId: string, eventId: string): Promise<void> {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('attendees')
       .delete()
       .eq('id', attendeeId)
@@ -112,3 +144,5 @@ export const attendeeService = {
     }
   },
 }
+
+export type { AttendeeRow }

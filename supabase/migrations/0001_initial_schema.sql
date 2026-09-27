@@ -74,18 +74,22 @@ ALTER TABLE incidents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photos    ENABLE ROW LEVEL SECURITY;
 
 -- Dev policies: owner-only access
+DROP POLICY IF EXISTS "events_owner_only" ON events;
 CREATE POLICY "events_owner_only" ON events
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "attendees_event_owner" ON attendees;
 CREATE POLICY "attendees_event_owner" ON attendees
   USING (event_id IN (SELECT id FROM events WHERE user_id = auth.uid()))
   WITH CHECK (event_id IN (SELECT id FROM events WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "incidents_event_owner" ON incidents;
 CREATE POLICY "incidents_event_owner" ON incidents
   USING (event_id IN (SELECT id FROM events WHERE user_id = auth.uid()))
   WITH CHECK (event_id IN (SELECT id FROM events WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "photos_event_owner" ON photos;
 CREATE POLICY "photos_event_owner" ON photos
   USING (event_id IN (SELECT id FROM events WHERE user_id = auth.uid()))
   WITH CHECK (event_id IN (SELECT id FROM events WHERE user_id = auth.uid()));
@@ -101,6 +105,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS events_updated_at ON events;
 CREATE TRIGGER events_updated_at
   BEFORE UPDATE ON events
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ─────────────────────────────────────────
+-- NOTIFY PostgREST to reload its schema cache
+-- Without this, a freshly created table returns
+-- "Could not find the table 'public.events' in the schema cache"
+-- until the cache expires (~1 min) or the project is restarted.
+-- ─────────────────────────────────────────
+NOTIFY pgrst, 'reload schema';
+
+-- ─────────────────────────────────────────
+-- VERIFY: expected row of output at the bottom
+--   events=1 attendees=1 incidents=1 photos=1
+-- If you get 0, a table was not created.
+-- ─────────────────────────────────────────
+DO $$
+DECLARE
+  t TEXT;
+  n BIGINT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['events', 'attendees', 'incidents', 'photos'] LOOP
+    EXECUTE format('SELECT count(*) FROM public.%I', t) INTO n;
+    RAISE NOTICE '%=%', t, n;
+  END LOOP;
+END $$;

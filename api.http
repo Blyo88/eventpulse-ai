@@ -1,78 +1,112 @@
 ### EventPulse AI — API Testing
-### Use with VS Code REST Client extension or import to Postman
+### Extension "REST Client" de VS Code (huerte.clauderivera.rest-client) o importable a Postman.
+###
+### FLUJ0 RECOMENDADO
+###   1. Ejecuta "Create Event" y copia el campo "id" de la respuesta.
+###   2. Pegalo en @eventId mas abajo.
+###   3. Ejecuta el bloque de webhooks.
 
-### BASE URL
 @baseUrl = http://localhost:3000/api
-@eventId = 550e8400-e29b-41d4-a716-446655440000
-@attendeeId = 660e8400-e29b-41d4-a716-446655440000
 
----
+### Pega aqui el UUID que devuelve POST /api/events.
+### Si lo dejas vacio, los ejemplos de webhooks devuelven 400 (Zod: UUID invalido).
+@eventId = PEGAR_AQUI_EL_UUID_DEL_EVENTO
 
-### ============================================
-### 1. EVENTS API
-### ============================================
+### ─────────────────────────────────────────────
+### 1. HEALTH CHECK
+### ─────────────────────────────────────────────
 
-### Create Event
+### Listar eventos
+GET {{baseUrl}}/events
+Accept: application/json
+
+###
+
+### ─────────────────────────────────────────────
+### 2. EVENTOS
+### ─────────────────────────────────────────────
+
+### Crear evento — 201 Created
 POST {{baseUrl}}/events
 Content-Type: application/json
 
 {
   "title": "Taller de Next.js 16",
-  "description": "Aprende las últimas características de Next.js con enfoque en el App Router",
-  "date": "2026-10-15T18:00:00Z",
-  "location": "Bogotá, Colombia",
+  "description": "Aprende el App Router con enfoque en Server Components",
+  "date": "2026-10-15T18:00:00.000Z",
+  "location": "Bogota, Colombia",
   "capacity": 150
 }
 
 ###
 
-### Get All Events
-GET {{baseUrl}}/events
+### Crear evento con campos opcionales omitidos — 201 Created (capacity por defecto = 0)
+POST {{baseUrl}}/events
 Content-Type: application/json
+
+{
+  "title": "Reunion de kickoff",
+  "date": "2026-11-02T15:00:00.000Z"
+}
 
 ###
 
-### ============================================
-### 2. WEBHOOKS — FORM SUBMISSIONS
-### ============================================
+### Evento invalido (title vacio, date no-ISO) — 400 Bad Request
+### La respuesta trae "details" con los issues de Zod.
+POST {{baseUrl}}/events
+Content-Type: application/json
 
-### Register Attendee via Webhook (Google Forms, Typeform, etc.)
+{
+  "title": "",
+  "date": "no-es-una-fecha"
+}
+
+###
+
+### ─────────────────────────────────────────────
+### 3. WEBHOOK DE FORMULARIOS
+### Registra asistentes desde Google Forms / Typeform / Jotform.
+### ─────────────────────────────────────────────
+
+### Registrar asistente — 201 Created
 POST {{baseUrl}}/webhooks/forms
 Content-Type: application/json
 
 {
-  "event_id": "550e8400-e29b-41d4-a716-446655440000",
-  "full_name": "Juan Pérez López",
+  "event_id": "{{eventId}}",
+  "full_name": "Juan Perez Lopez",
   "email": "juan.perez@example.com"
 }
 
 ###
 
-### Register Multiple Attendees (Bulk Test)
+### Registrar segundo asistente — 201 Created
 POST {{baseUrl}}/webhooks/forms
 Content-Type: application/json
 
 {
-  "event_id": "550e8400-e29b-41d4-a716-446655440000",
-  "full_name": "María García Rodríguez",
+  "event_id": "{{eventId}}",
+  "full_name": "Maria Garcia Rodriguez",
   "email": "maria.garcia@example.com"
 }
 
 ###
 
-### Test Duplicate Registration (Should return 409)
+### Email duplicado en el mismo evento — 409 Conflict
+### La BD tiene UNIQUE (event_id, email), y el handler comprueba duplicados
+### antes de insertar para devolver un 409 en vez de un 500.
 POST {{baseUrl}}/webhooks/forms
 Content-Type: application/json
 
 {
-  "event_id": "550e8400-e29b-41d4-a716-446655440000",
-  "full_name": "Juan Pérez López",
+  "event_id": "{{eventId}}",
+  "full_name": "Juan Perez Lopez",
   "email": "juan.perez@example.com"
 }
 
 ###
 
-### Test Invalid Payload (Should return 400)
+### Payload invalido (UUID roto, nombre vacio, email mal) — 400 Bad Request
 POST {{baseUrl}}/webhooks/forms
 Content-Type: application/json
 
@@ -84,49 +118,36 @@ Content-Type: application/json
 
 ###
 
-### ============================================
-### 3. INTEGRATION EXAMPLES
-### ============================================
+### ─────────────────────────────────────────────
+### 4. INTEGRACION CON FORMULARIOS
+### ─────────────────────────────────────────────
 
-### Example 1: Google Forms → EventPulse Webhook
-### Configure Google Forms with Zapier or Make to POST to:
-### {{baseUrl}}/webhooks/forms
-### Payload structure:
-### {
-###   "event_id": "YOUR_EVENT_UUID",
-###   "full_name": "{{form.Name}}",
-###   "email": "{{form.Email}}"
-### }
-
+### Google Forms -> EventPulse
+### Google Forms no hace POST directo: usa un conector (Make, Zapier, n8n).
+###   URL:     https://<tu-dominio>/api/webhooks/forms
+###   Method:  POST
+###   Headers: Content-Type: application/json
+###   Body:
+###   {
+###     "event_id": "<UUID del evento>",
+###     "full_name": "{{answers.Nombre}}",
+###     "email":     "{{answers.Email}}"
+###   }
+### Si el conector envia application/x-www-form-urlencoded o multipart,
+### ese body debe convertirse a JSON en el conector.
 ###
-
-### Example 2: Typeform → EventPulse Webhook
-### Configure Typeform webhook with:
-### URL: {{baseUrl}}/webhooks/forms
-### Payload mapping:
-### {
-###   "event_id": "YOUR_EVENT_UUID",
-###   "full_name": "{{answers.full_name.text}}",
-###   "email": "{{answers.email.email}}"
-### }
-
+### Typeform -> EventPulse
+###   Typeform > Settings > Webhooks > Add webhook
+###   URL: https://<tu-dominio>/api/webhooks/forms
+###   Activa el evento "formSubmit" y mapea el payload a:
+###   {
+###     "event_id": "<UUID del evento>",
+###     "full_name": "{{answers.full_name.text}}",
+###     "email":     "{{answers.email.email}}"
+###   }
 ###
-
-### ============================================
-### 4. TESTING CHECKLIST
-### ============================================
-
-### ✓ POST /api/events — Create Event
-### ✓ GET /api/events — List Events
-### ✓ POST /api/webhooks/forms — Register Attendee
-### ✓ POST /api/webhooks/forms — Duplicate Email (409)
-### ✓ POST /api/webhooks/forms — Invalid Payload (400)
-
-###
-### Success Criteria:
-### - 201 Created: Event or Attendee created successfully
-### - 400 Bad Request: Validation failed (Zod errors)
-### - 409 Conflict: Attendee already registered
-### - 500 Internal Server Error: Database or service error
-
-###
+### Codigos de respuesta
+###   201 Created    -> alta exitosa
+###   400 Bad Request-> payload que no pasa Zod (mira "details")
+###   409 Conflict   -> el email ya esta registrado en ese evento
+###   500 Server Error-> fallo de Supabase o FK violada

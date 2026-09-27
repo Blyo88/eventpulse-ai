@@ -1,3 +1,20 @@
+/**
+ * Tipos de base de datos generados a mano para EventPulse AI.
+ *
+ * Estos tipos DEBEN cumplir el contrato `GenericSchema` de `@supabase/postgrest-js`:
+ *
+ *   type GenericTable = {
+ *     Row: Record<string, unknown>
+ *     Insert: Record<string, unknown>
+ *     Update: Record<string, unknown>
+ *     Relationships: GenericRelationship[]   <- obligatorio
+ *   }
+ *
+ * Si falta `Relationships` en cualquier tabla, `Database` deja de satisfacer
+ * `GenericSchema`, la inferencia condicional colapsa a `never` y TODAS las
+ * consultas `.from(...).insert(...)` fallan con "argument of type 'never'".
+ */
+
 export type Json =
   | string
   | number
@@ -5,6 +22,25 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[]
+
+/** Copia local de `GenericRelationship` (no exportado por postgrest-js). */
+export type Relationship = {
+  foreignKeyName: string
+  columns: string[]
+  isOneToOne: boolean
+  referencedRelation: string
+  referencedColumns: string[]
+}
+
+export type EventStatus = 'draft' | 'active' | 'finished' | 'archived'
+export type IncidentCategory = 'logistics' | 'capacity' | 'hardware' | 'software' | 'other'
+export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical'
+export type PhotoCategory = 'stage' | 'audience' | 'networking' | 'branding' | 'other'
+
+/**
+ * Las tablas hijas declaran su FK `*_event_id_fkey` hacia `events`.
+ * `events` no declara ninguna: su única FK apunta a `auth.users`, fuera de `public`.
+ */
 
 export type Database = {
   public: {
@@ -18,7 +54,7 @@ export type Database = {
           date: string
           location: string | null
           capacity: number
-          status: 'draft' | 'active' | 'finished' | 'archived'
+          status: EventStatus
           created_at: string
           updated_at: string
         }
@@ -30,7 +66,7 @@ export type Database = {
           date: string
           location?: string | null
           capacity?: number
-          status?: 'draft' | 'active' | 'finished' | 'archived'
+          status?: EventStatus
           created_at?: string
           updated_at?: string
         }
@@ -42,10 +78,11 @@ export type Database = {
           date?: string
           location?: string | null
           capacity?: number
-          status?: 'draft' | 'active' | 'finished' | 'archived'
+          status?: EventStatus
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       attendees: {
         Row: {
@@ -78,13 +115,22 @@ export type Database = {
           checked_in_at?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'attendees_event_id_fkey',
+            columns: ['event_id'],
+            isOneToOne: false,
+            referencedRelation: 'events',
+            referencedColumns: ['id'],
+          },
+        ]
       }
       incidents: {
         Row: {
           id: string
           event_id: string
-          category: 'logistics' | 'capacity' | 'hardware' | 'software' | 'other'
-          severity: 'low' | 'medium' | 'high' | 'critical'
+          category: IncidentCategory
+          severity: IncidentSeverity
           description: string
           resolved: boolean
           resolved_at: string | null
@@ -93,8 +139,8 @@ export type Database = {
         Insert: {
           id?: string
           event_id: string
-          category: 'logistics' | 'capacity' | 'hardware' | 'software' | 'other'
-          severity: 'low' | 'medium' | 'high' | 'critical'
+          category: IncidentCategory
+          severity: IncidentSeverity
           description: string
           resolved?: boolean
           resolved_at?: string | null
@@ -103,13 +149,22 @@ export type Database = {
         Update: {
           id?: string
           event_id?: string
-          category?: 'logistics' | 'capacity' | 'hardware' | 'software' | 'other'
-          severity?: 'low' | 'medium' | 'high' | 'critical'
+          category?: IncidentCategory
+          severity?: IncidentSeverity
           description?: string
           resolved?: boolean
           resolved_at?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'incidents_event_id_fkey',
+            columns: ['event_id'],
+            isOneToOne: false,
+            referencedRelation: 'events',
+            referencedColumns: ['id'],
+          },
+        ]
       }
       photos: {
         Row: {
@@ -117,7 +172,7 @@ export type Database = {
           event_id: string
           storage_url: string
           ai_score: number | null
-          category: 'stage' | 'audience' | 'networking' | 'branding' | 'other' | null
+          category: PhotoCategory | null
           is_selected: boolean
           created_at: string
         }
@@ -126,7 +181,7 @@ export type Database = {
           event_id: string
           storage_url: string
           ai_score?: number | null
-          category?: 'stage' | 'audience' | 'networking' | 'branding' | 'other' | null
+          category?: PhotoCategory | null
           is_selected?: boolean
           created_at?: string
         }
@@ -135,15 +190,25 @@ export type Database = {
           event_id?: string
           storage_url?: string
           ai_score?: number | null
-          category?: 'stage' | 'audience' | 'networking' | 'branding' | 'other' | null
+          category?: PhotoCategory | null
           is_selected?: boolean
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'photos_event_id_fkey',
+            columns: ['event_id'],
+            isOneToOne: false,
+            referencedRelation: 'events',
+            referencedColumns: ['id'],
+          },
+        ]
       }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
     Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }
 
@@ -155,3 +220,6 @@ export type TablesInsert<T extends keyof Database['public']['Tables']> =
 
 export type TablesUpdate<T extends keyof Database['public']['Tables']> =
   Database['public']['Tables'][T]['Update']
+
+/** Nombres de tabla válidos, para genéricos de tipo. */
+export type TableName = keyof Database['public']['Tables']
