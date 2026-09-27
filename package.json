@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "seed:demo-user": "node scripts/seed-demo-user.mjs",
-    "test:api": "node scripts/smoke-api.mjs"
+    "test:api": "node scripts/smoke-api.mjs",
+    "db:migrate": "node scripts/apply-migrations.mjs",
+    "db:migrate:dry": "node scripts/apply-migrations.mjs --dry-run"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -33,6 +35,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
+    "pg": "^8.23.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
