@@ -1,0 +1,132 @@
+### EventPulse AI — API Testing
+### Use with VS Code REST Client extension or import to Postman
+
+### BASE URL
+@baseUrl = http://localhost:3000/api
+@eventId = 550e8400-e29b-41d4-a716-446655440000
+@attendeeId = 660e8400-e29b-41d4-a716-446655440000
+
+---
+
+### ============================================
+### 1. EVENTS API
+### ============================================
+
+### Create Event
+POST {{baseUrl}}/events
+Content-Type: application/json
+
+{
+  "title": "Taller de Next.js 16",
+  "description": "Aprende las últimas características de Next.js con enfoque en el App Router",
+  "date": "2026-10-15T18:00:00Z",
+  "location": "Bogotá, Colombia",
+  "capacity": 150
+}
+
+###
+
+### Get All Events
+GET {{baseUrl}}/events
+Content-Type: application/json
+
+###
+
+### ============================================
+### 2. WEBHOOKS — FORM SUBMISSIONS
+### ============================================
+
+### Register Attendee via Webhook (Google Forms, Typeform, etc.)
+POST {{baseUrl}}/webhooks/forms
+Content-Type: application/json
+
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "full_name": "Juan Pérez López",
+  "email": "juan.perez@example.com"
+}
+
+###
+
+### Register Multiple Attendees (Bulk Test)
+POST {{baseUrl}}/webhooks/forms
+Content-Type: application/json
+
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "full_name": "María García Rodríguez",
+  "email": "maria.garcia@example.com"
+}
+
+###
+
+### Test Duplicate Registration (Should return 409)
+POST {{baseUrl}}/webhooks/forms
+Content-Type: application/json
+
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "full_name": "Juan Pérez López",
+  "email": "juan.perez@example.com"
+}
+
+###
+
+### Test Invalid Payload (Should return 400)
+POST {{baseUrl}}/webhooks/forms
+Content-Type: application/json
+
+{
+  "event_id": "invalid-uuid",
+  "full_name": "",
+  "email": "not-an-email"
+}
+
+###
+
+### ============================================
+### 3. INTEGRATION EXAMPLES
+### ============================================
+
+### Example 1: Google Forms → EventPulse Webhook
+### Configure Google Forms with Zapier or Make to POST to:
+### {{baseUrl}}/webhooks/forms
+### Payload structure:
+### {
+###   "event_id": "YOUR_EVENT_UUID",
+###   "full_name": "{{form.Name}}",
+###   "email": "{{form.Email}}"
+### }
+
+###
+
+### Example 2: Typeform → EventPulse Webhook
+### Configure Typeform webhook with:
+### URL: {{baseUrl}}/webhooks/forms
+### Payload mapping:
+### {
+###   "event_id": "YOUR_EVENT_UUID",
+###   "full_name": "{{answers.full_name.text}}",
+###   "email": "{{answers.email.email}}"
+### }
+
+###
+
+### ============================================
+### 4. TESTING CHECKLIST
+### ============================================
+
+### ✓ POST /api/events — Create Event
+### ✓ GET /api/events — List Events
+### ✓ POST /api/webhooks/forms — Register Attendee
+### ✓ POST /api/webhooks/forms — Duplicate Email (409)
+### ✓ POST /api/webhooks/forms — Invalid Payload (400)
+
+###
+### Success Criteria:
+### - 201 Created: Event or Attendee created successfully
+### - 400 Bad Request: Validation failed (Zod errors)
+### - 409 Conflict: Attendee already registered
+### - 500 Internal Server Error: Database or service error
+
+###
