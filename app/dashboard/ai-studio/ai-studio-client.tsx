@@ -26,9 +26,10 @@ interface AiResult {
 }
 
 export default function AiStudioClient({ events }: { events: Tables<'events'>[] }) {
-  const [selectedEventId, setSelectedEventId] = useState<string>('')
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
+  
+  // Datos del evento seleccionado
   const [photos, setPhotos] = useState<Tables<'photos'>[]>([])
-  // Estado para la multi-selección
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -39,15 +40,45 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [aiResult, setAiResult] = useState<AiResult | null>(null)
   
+  // Estados para el Grid de Eventos
+  const [eventsData, setEventsData] = useState<Record<string, { photoCount: number, hasAi: boolean }>>({})
+  const [loadingGridDb, setLoadingGridDb] = useState(true)
+
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  // Cargar fotos y análisis cuando se selecciona un evento
+  // 1. Cargar las estadísticas globales para el Grid de Eventos al inicio
+  useEffect(() => {
+    async function loadGridStats() {
+      setLoadingGridDb(true)
+      try {
+        const stats: Record<string, { photoCount: number, hasAi: boolean }> = {}
+        for (const event of events) {
+          const [photosRes, aiRes] = await Promise.all([
+            fetch(`/api/photos?event_id=${event.id}`).then(res => res.json()),
+            fetch(`/api/ai/analyze?event_id=${event.id}`).then(res => res.json())
+          ])
+          stats[event.id] = {
+            photoCount: photosRes.data?.length || 0,
+            hasAi: !!aiRes.data
+          }
+        }
+        setEventsData(stats)
+      } catch (err) {
+        console.error("Error cargando estadísticas del grid:", err)
+      } finally {
+        setLoadingGridDb(false)
+      }
+    }
+    loadGridStats()
+  }, [events])
+
+  // 2. Cargar fotos y análisis de UN evento cuando se selecciona (Vista Estudio)
   useEffect(() => {
     if (selectedEventId) {
       setLoadingPhotos(true)
-      setSelectedIds(new Set()) // limpiar selección al cambiar evento
-      setAiResult(null) // ocultar resultados anteriores
+      setSelectedIds(new Set()) 
+      setAiResult(null) 
       
       Promise.all([
         fetch(`/api/photos?event_id=${selectedEventId}`).then(res => res.json()),
@@ -60,10 +91,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
       }).finally(() => {
         setLoadingPhotos(false)
       })
-    } else {
-      setPhotos([])
-      setSelectedIds(new Set())
-      setAiResult(null)
     }
   }, [selectedEventId])
 
@@ -78,6 +105,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   }
 
   const uploadFile = async (file: File): Promise<Tables<'photos'> | null> => {
+    if (!selectedEventId) throw new Error('Evento no seleccionado')
     const formData = new FormData()
     formData.append('event_id', selectedEventId)
     formData.append('file', file)
@@ -233,6 +261,15 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
       if (!res.ok) throw new Error(json.error || 'Error en Gemini AI')
       
       setAiResult(json.data as AiResult)
+      
+      // Actualizar el estado del grid localmente
+      if (selectedEventId) {
+         setEventsData(prev => ({
+           ...prev,
+           [selectedEventId]: { ...prev[selectedEventId], hasAi: true }
+         }))
+      }
+      
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error desconocido de IA')
     } finally {
@@ -258,53 +295,152 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     }
   }
 
+  // Volver al Grid
+  const handleBackToGrid = () => {
+    setSelectedEventId(null)
+    setPhotos([])
+    setSelectedIds(new Set())
+    setAiResult(null)
+  }
+
+  const selectedEvent = selectedEventId ? events.find(e => e.id === selectedEventId) : null
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Selector de evento */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-            Selecciona un evento
-          </label>
-          
-          {selectedEventId && !loadingPhotos && (
-            <span className="neu-badge" style={{ 
-              background: aiResult ? 'rgba(16, 185, 129, 0.1)' : photos.length > 0 ? 'var(--surface-deep)' : 'rgba(239, 68, 68, 0.1)', 
-              color: aiResult ? '#10b981' : photos.length > 0 ? 'var(--text-secondary)' : '#ef4444' 
-            }}>
-              {aiResult ? '✨ Análisis completado' : photos.length > 0 ? `Fotos sin analizar (${photos.length})` : 'Sin fotos'}
-            </span>
-          )}
-        </div>
-        
-        <select
-          value={selectedEventId}
-          onChange={(e) => setSelectedEventId(e.target.value)}
-          style={{
-            background: 'var(--surface)',
-            border: 'none',
-            borderRadius: 'var(--r-pill)',
-            boxShadow: 'var(--shadow-soft-inset)',
-            color: 'var(--text-primary)',
-            fontSize: '0.9rem',
-            outline: 'none',
-            padding: '12px 20px',
-            width: '100%',
-            cursor: 'pointer',
-          }}
-        >
-          <option value="">¿Cuál es tu evento?</option>
-          {events.map((event) => (
-            <option key={event.id} value={event.id}>
-              {event.title} — {new Date(event.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-            </option>
-          ))}
-        </select>
-      </div>
+      <AnimatePresence mode="wait">
+        {!selectedEventId ? (
+          /* ================================================================
+             VISTA 1: GRID DE EVENTOS
+             ================================================================ */
+          <motion.div
+            key="grid-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.25 }}
+            className="flex flex-col gap-6"
+          >
+            {loadingGridDb ? (
+              <div className="neu-card flex items-center justify-center py-16">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                     stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"
+                     className="animate-spin">
+                  <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" strokeOpacity=".3"/>
+                  <path d="M12 3a9 9 0 0 1 9 9"/>
+                </svg>
+              </div>
+            ) : events.length === 0 ? (
+              <div className="neu-card flex flex-col items-center py-16 gap-4">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+                     stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <path d="M16 2v4M8 2v4M3 10h18"/>
+                </svg>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  No hay eventos creados. Ve a Eventos para crear uno.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {events.map((event) => {
+                  const stats = eventsData[event.id]
+                  const photoCount = stats?.photoCount ?? 0
+                  const hasAi = stats?.hasAi ?? false
+                  
+                  return (
+                    <motion.div
+                      key={event.id}
+                      whileHover={{ y: -3 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      onClick={() => setSelectedEventId(event.id)}
+                      className="neu-card cursor-pointer flex flex-col gap-4"
+                      style={{ padding: '24px' }}
+                    >
+                      {/* Nombre + Fecha */}
+                      <div>
+                        <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                          {event.title}
+                        </h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 4 }}>
+                          {new Date(event.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                      </div>
 
-      {selectedEventId && (
-        <>
-          {/* Drop Zone */}
+                      {/* Fotos en galería */}
+                      <div className="flex items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                             stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/>
+                          <circle cx="8.5" cy="8.5" r="1.5"/>
+                          <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                          Fotos en galería: <strong>{photoCount}</strong>
+                        </span>
+                      </div>
+
+                      {/* Badge Estado IA */}
+                      <div className="mt-auto">
+                        {hasAi ? (
+                          <span className="neu-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                            Completado ✅
+                          </span>
+                        ) : photoCount > 0 ? (
+                          <span className="neu-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                            Pendiente ⏳
+                          </span>
+                        ) : (
+                          <span className="neu-badge" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                            Sin fotos 📷
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          /* ================================================================
+             VISTA 2: ESTUDIO DE EVENTO (Vista de Detalle)
+             ================================================================ */
+          <motion.div
+            key="studio-view"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 40 }}
+            transition={{ duration: 0.25 }}
+            className="flex flex-col gap-6"
+          >
+            {/* Botón Volver e Info de Evento */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <button
+                onClick={handleBackToGrid}
+                className="neu-btn"
+                style={{ gap: 8 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Volver a todos los eventos
+              </button>
+
+              {selectedEvent && (
+                <div className="text-right">
+                  <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                    {selectedEvent.title}
+                  </h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    {new Date(selectedEvent.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Drop Zone */}
           <div
             onDrop={onDrop}
             onDragOver={onDragOver}
@@ -671,8 +807,9 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
               </motion.div>
             )}
           </AnimatePresence>
-        </>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
