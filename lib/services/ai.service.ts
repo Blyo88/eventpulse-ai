@@ -1,4 +1,6 @@
+import { createAdminClient } from './../supabase/admin'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import type { Tables } from '@/types/supabase'
 
 export interface AiAnalysisResult {
   selected_photos: {
@@ -10,6 +12,53 @@ export interface AiAnalysisResult {
 }
 
 class AiService {
+  async saveAnalysis(eventId: string, data: AiAnalysisResult): Promise<Tables<'ai_analyses'>> {
+    const supabase = await createAdminClient()
+    
+    // Calcula score promedio de las fotos o toma el primero
+    const ai_score = data.selected_photos.length > 0 
+      ? Math.round(data.selected_photos.reduce((acc, p) => acc + p.ai_score, 0) / data.selected_photos.length) 
+      : 0
+    
+    const urls = data.selected_photos.map(p => p.url)
+
+    const payload = {
+      event_id: eventId,
+      selected_photo_urls: urls,
+      generated_copy: data.generated_copy,
+      ai_score,
+      updated_at: new Date().toISOString()
+    }
+
+    const { data: upserted, error } = await supabase
+      .from('ai_analyses')
+      .upsert(payload, { onConflict: 'event_id' })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error saving AI analysis to db:', error)
+      throw new Error('No se pudo guardar el análisis de IA en la base de datos.')
+    }
+    
+    return upserted
+  }
+
+  async getAnalysisByEventId(eventId: string): Promise<Tables<'ai_analyses'> | null> {
+    const supabase = await createAdminClient()
+    const { data, error } = await supabase
+      .from('ai_analyses')
+      .select('*')
+      .eq('event_id', eventId)
+      .maybeSingle()
+      
+    if (error) {
+      console.error('Error fetching AI analysis:', error)
+      return null
+    }
+    return data
+  }
+
   async analyzePhotosAndGenerateCopy(imageUrls: string[], eventName?: string, eventDescription?: string): Promise<AiAnalysisResult> {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error('La variable de entorno GEMINI_API_KEY no está configurada.')

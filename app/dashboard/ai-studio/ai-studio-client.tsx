@@ -42,19 +42,28 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  // Cargar fotos cuando se selecciona un evento
+  // Cargar fotos y análisis cuando se selecciona un evento
   useEffect(() => {
     if (selectedEventId) {
       setLoadingPhotos(true)
       setSelectedIds(new Set()) // limpiar selección al cambiar evento
       setAiResult(null) // ocultar resultados anteriores
-      fetch(`/api/photos?event_id=${selectedEventId}`)
-        .then((res) => res.json())
-        .then((json) => setPhotos(json.data || []))
-        .finally(() => setLoadingPhotos(false))
+      
+      Promise.all([
+        fetch(`/api/photos?event_id=${selectedEventId}`).then(res => res.json()),
+        fetch(`/api/ai/analyze?event_id=${selectedEventId}`).then(res => res.json())
+      ]).then(([photosRes, aiRes]) => {
+        setPhotos(photosRes.data || [])
+        if (aiRes.data) {
+          setAiResult(aiRes.data as AiResult)
+        }
+      }).finally(() => {
+        setLoadingPhotos(false)
+      })
     } else {
       setPhotos([])
       setSelectedIds(new Set())
+      setAiResult(null)
     }
   }, [selectedEventId])
 
@@ -215,7 +224,8 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
         body: JSON.stringify({ 
           imageUrls: urls,
           eventName: selectedEvent?.title || '',
-          eventDescription: selectedEvent?.description || ''
+          eventDescription: selectedEvent?.description || '',
+          eventId: selectedEventId
         }),
       })
       const json = await res.json()
@@ -252,9 +262,21 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     <div className="flex flex-col gap-6">
       {/* Selector de evento */}
       <div>
-        <label style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-          Selecciona un evento
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            Selecciona un evento
+          </label>
+          
+          {selectedEventId && !loadingPhotos && (
+            <span className="neu-badge" style={{ 
+              background: aiResult ? 'rgba(16, 185, 129, 0.1)' : photos.length > 0 ? 'var(--surface-deep)' : 'rgba(239, 68, 68, 0.1)', 
+              color: aiResult ? '#10b981' : photos.length > 0 ? 'var(--text-secondary)' : '#ef4444' 
+            }}>
+              {aiResult ? '✨ Análisis completado' : photos.length > 0 ? `Fotos sin analizar (${photos.length})` : 'Sin fotos'}
+            </span>
+          )}
+        </div>
+        
         <select
           value={selectedEventId}
           onChange={(e) => setSelectedEventId(e.target.value)}
@@ -549,7 +571,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                     </svg>
                     {selectedIds.size > 0 
                       ? `Analizar las ${selectedIds.size} fotos seleccionadas`
-                      : `Analizar evento completo y crear Post`}
+                      : aiResult ? `Volver a analizar con IA` : `Analizar evento completo y crear Post`}
                   </>
                 )}
               </button>

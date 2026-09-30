@@ -45,6 +45,44 @@ export type PhotoCategory = 'stage' | 'audience' | 'networking' | 'branding' | '
 export type Database = {
   public: {
     Tables: {
+      ai_analyses: {
+        Row: {
+          id: string
+          event_id: string
+          selected_photo_urls: string[]
+          generated_copy: string
+          ai_score: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          selected_photo_urls?: string[]
+          generated_copy: string
+          ai_score: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          selected_photo_urls?: string[]
+          generated_copy?: string
+          ai_score?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analyses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       events: {
         Row: {
           id: string
