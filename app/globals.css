@@ -2,11 +2,12 @@
 
 /* ────────────────────────────────────────────────────────────────
    NEUMORPHISM DESIGN TOKENS — Skill: SKILL.md
-   Mode: Light  |  Surface: Stone Gray #e0e5ec  |  Accent: Lavender
+   Light Mode: Stone Gray #e0e5ec  |  Dark Mode: Midnight #1e2228
    Regla de oro: element bg == --surface. Sin bordes jamás.
    ──────────────────────────────────────────────────────────────── */
 
 :root {
+  /* ─────────── LIGHT MODE ─────────── */
   /* Surface */
   --surface:        #e0e5ec;
   --surface-deep:   #d1d9e6;
@@ -31,18 +32,34 @@
   --text-primary:   #4a5568;
   --text-secondary: #718096;
   --text-muted:     #a0aec0;
+}
 
-  /* Radius */
-  --r-sm:   8px;
-  --r-md:  14px;
-  --r-lg:  20px;
-  --r-xl:  28px;
-  --r-pill: 999px;
+/* ─────────── DARK MODE ─────────── */
+[data-theme="dark"] {
+  /* Surface = Midnight */
+  --surface:        #1e2228;
+  --surface-deep:   #16191d;
+  --surface-raised: #272c33;
 
-  /* Transitions */
-  --t-press:  0.12s cubic-bezier(0.4, 0, 0.2, 1);
-  --t-lift:   0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-  --t-smooth: 0.25s ease;
+  /* Invertidos: luz viene de arriba, sombra abajo es más oscura */
+  --shadow-light: rgba(255, 255, 255, 0.04);
+  --shadow-dark:  rgba(0, 0, 0, 0.30);
+
+  --shadow-soft-raised: -6px  -6px 14px var(--shadow-light),  6px  6px 14px var(--shadow-dark);
+  --shadow-soft-flat:   -2px  -2px  5px var(--shadow-light),  2px  2px  5px var(--shadow-dark);
+  --shadow-soft-inset:  inset -4px  -4px 10px var(--shadow-light), inset 4px  4px 10px var(--shadow-dark);
+  --shadow-md-raised:   -8px  -8px 18px var(--shadow-light),  8px  8px 18px var(--shadow-dark);
+  --shadow-md-inset:    inset -6px  -6px 14px var(--shadow-light), inset 6px  6px 14px var(--shadow-dark);
+
+  /* Accent — Lavender más brillante en dark */
+  --accent:       #a88be0;
+  --accent-light: rgba(168, 139, 224, 0.15);
+  --accent-glow:  0 0 15px rgba(168, 139, 224, 0.35);
+
+  /* Text — más claro */
+  --text-primary:   #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -198,6 +215,31 @@ body {
   transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Theme toggle button */
+.neu-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-soft-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: box-shadow var(--t-press), color var(--t-smooth), transform var(--t-press);
+}
+
+.neu-theme-toggle:hover {
+  color: var(--accent);
+}
+
+.neu-theme-toggle:active {
+  box-shadow: var(--shadow-soft-inset);
+  transform: scale(0.95);
+}
+
 /* ────────────────────────────────────────────────────────────────
    REDUCED MOTION
    ──────────────────────────────────────────────────────────────── */
@@ -207,4 +249,12 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   THEME TRANSITION
+   ──────────────────────────────────────────────────────────────── */
+
+[data-theme] {
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

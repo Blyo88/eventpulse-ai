@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Nunito, Inter } from 'next/font/google'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const nunito = Nunito({
@@ -26,12 +27,20 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     <html
       lang="es"
       className={`${nunito.variable} ${inter.variable} h-full`}
+      suppressHydrationWarning
     >
       <body
         className="min-h-full flex flex-col"
         style={{ fontFamily: 'var(--font-inter), system-ui, sans-serif' }}
       >
-        {children}
+        <ThemeProvider
+          attribute="data-theme"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
