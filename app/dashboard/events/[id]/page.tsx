@@ -51,11 +51,10 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params
 
-  const [event, attendees, incidents, photos] = await Promise.all([
+  const [event, attendees, incidents] = await Promise.all([
     eventService.getEventById(id).catch(() => null),
     attendeeService.getAttendeesByEventId(id),
     incidentService.getIncidentsByEventId(id),
-    photoService.getPhotosByEventId(id),
   ])
 
   if (!event) notFound()
@@ -153,13 +152,11 @@ export default async function EventDetailPage({
         </div>
       </div>
 
-      {/* Tabs: Asistentes / Incidentes / Galería */}
+      {/* Tabs: Asistentes / Incidentes */}
       <EventTabs
         eventId={event.id}
         attendees={attendees}
         incidents={incidents}
-        photos={photos}
-        openIncidents={openIncidents}
       />
     </div>
   )
