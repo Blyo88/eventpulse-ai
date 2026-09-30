@@ -74,7 +74,7 @@ export default function DashboardSidebar({ userEmail }: SidebarProps) {
       style={{ background: 'var(--surface)' }}
     >
       {/* Logo */}
-      <div className="neu-card flex items-center gap-3 mb-2" style={{ padding: '16px 20px' }}>
+      <Link href="/dashboard" className="neu-card flex items-center gap-3 mb-2" style={{ padding: '16px 20px', textDecoration: 'none' }}>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
              stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -85,7 +85,7 @@ export default function DashboardSidebar({ userEmail }: SidebarProps) {
           </p>
           <p style={{ fontSize: '0.65rem', color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>AI</p>
         </div>
-      </div>
+      </Link>
 
       {/* Navegación */}
       <nav className="flex-1 flex flex-col gap-2">

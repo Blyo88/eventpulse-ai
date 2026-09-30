@@ -11,6 +11,18 @@ export const attendeeService = {
    * Registra un asistente. `input` debe venir ya validado con Zod
    * (`registerAttendeeSchema`), esta capa no revalida.
    */
+  async countAllAttendees(eventIds: string[]): Promise<number> {
+    if (eventIds.length === 0) return 0
+    const supabase = createAdminClient()
+    const { count, error } = await supabase
+      .from('attendees')
+      .select('*', { count: 'exact', head: true })
+      .in('event_id', eventIds)
+
+    if (error) throw new Error(`Failed to count attendees: ${error.message}`)
+    return count || 0
+  },
+
   async registerAttendee(input: RegisterAttendeeInput): Promise<AttendeeRow> {
     const supabase = createAdminClient()
 
