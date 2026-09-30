@@ -17,9 +17,12 @@ interface UploadingFile {
 }
 
 interface AiResult {
-  selected_photo_url: string
-  generated_copy: string
-  ai_score: number
+  selected_photos: {
+    url: string;
+    ai_score: number;
+    reason: string;
+  }[];
+  generated_copy: string;
 }
 
 export default function AiStudioClient({ events }: { events: Tables<'events'>[] }) {
@@ -205,10 +208,15 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
 
     try {
       const urls = targetPhotos.map(p => p.storage_url)
+      const selectedEvent = events.find(e => e.id === selectedEventId)
       const res = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ photo_urls: urls }),
+        body: JSON.stringify({ 
+          imageUrls: urls,
+          eventName: selectedEvent?.title || '',
+          eventDescription: selectedEvent?.description || ''
+        }),
       })
       const json = await res.json()
       
@@ -219,6 +227,24 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
       alert(err instanceof Error ? err.message : 'Error desconocido de IA')
     } finally {
       setIsAnalyzing(false)
+    }
+  }
+
+  const downloadImage = async (url: string, filename = 'imagen-evento.jpg') => {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const blobUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      console.error('Error al descargar imagen:', err)
+      window.open(url, '_blank')
     }
   }
 
@@ -539,37 +565,64 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                 className="neu-card mt-6 flex flex-col md:flex-row gap-6"
                 style={{ padding: '32px' }}
               >
-                {/* Foto Elegida */}
-                <div className="w-full md:w-1/3 flex flex-col gap-3">
+                {/* Fotos Elegidas */}
+                <div className="w-full md:w-1/2 flex flex-col gap-3">
                   <div className="flex items-center gap-2 mb-1">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                     <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      Foto Ganadora
+                      Top Fotos ({aiResult.selected_photos.length})
                     </h3>
                   </div>
-                  <div
-                    className="rounded-xl overflow-hidden shadow-inner aspect-square"
-                    style={{ boxShadow: 'var(--shadow-soft-inset)' }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={aiResult.selected_photo_url}
-                      alt="Mejor foto elegida por IA"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Calidad IA:</p>
-                    <span className="neu-badge" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
-                      {aiResult.ai_score} / 100
-                    </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {aiResult.selected_photos.map((photo, idx) => (
+                      <div
+                        key={idx}
+                        className="flex flex-col gap-2 rounded-xl p-3"
+                        style={{ background: 'var(--surface-deep)', boxShadow: 'var(--shadow-soft-inset)' }}
+                      >
+                        <div
+                          className="rounded-lg overflow-hidden aspect-square"
+                          style={{ boxShadow: 'var(--shadow-soft-raised)' }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo.url}
+                            alt={`Foto seleccionada ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-xs mt-1">
+                          <span className="neu-badge flex items-center justify-center p-0" style={{ background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '0.7rem', padding: '2px 6px' }}>
+                            Score: {photo.ai_score}
+                          </span>
+                          <button
+                            onClick={() => downloadImage(photo.url, `evento-top-${idx + 1}.jpg`)}
+                            className="neu-btn"
+                            style={{ fontSize: '0.7rem', padding: '4px 8px' }}
+                            title="Descargar foto"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                              <polyline points="7 10 12 15 17 10"/>
+                              <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                          </button>
+                        </div>
+                        {photo.reason && (
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.3 }}>
+                            {photo.reason}
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 {/* Copy Generado */}
-                <div className="w-full md:w-2/3 flex flex-col gap-3">
+                <div className="w-full md:w-1/2 flex flex-col gap-3">
                   <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, color: 'var(--text-primary)' }}>
                     Copy sugerido para Redes Sociales
                   </h3>
