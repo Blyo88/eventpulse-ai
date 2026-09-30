@@ -20,7 +20,7 @@ class AiService {
     
     // Gemini 1.5 Flash es perfecto para visión multimodal veloz
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+      model: 'gemini-1.5-flash-latest',
       generationConfig: {
         responseMimeType: 'application/json',
       }
