@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import type { Tables } from '@/types/supabase'
+import AddEventModal from './add-event-modal'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE_MB = 10
@@ -39,6 +40,9 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   // Estado de Gemini AI
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [aiResult, setAiResult] = useState<AiResult | null>(null)
+  
+  // Estado para el modal de añadir evento
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   
   // Estados para el Grid de Eventos
   const [eventsData, setEventsData] = useState<Record<string, { photoCount: number, hasAi: boolean }>>({})
@@ -399,6 +403,28 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                     </motion.div>
                   )
                 })}
+
+                {/* Botón (+) Neumórfico para Añadir Evento */}
+                <motion.button
+                  whileHover={{ scale: 1.02, y: -3 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="neu-card flex flex-col items-center justify-center cursor-pointer min-h-[180px]"
+                  style={{ border: 'none', background: 'var(--surface)', padding: '24px' }}
+                >
+                  <div 
+                    className="w-14 h-14 rounded-full flex items-center justify-center mb-2"
+                    style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-soft-raised)' }}
+                  >
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent)' }}>
+                    Añadir evento al Estudio
+                  </span>
+                </motion.button>
               </div>
             )}
           </motion.div>
@@ -808,6 +834,20 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
             )}
           </AnimatePresence>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal para añadir evento al Estudio */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <AddEventModal
+            events={events}
+            onConfirm={(eventId) => {
+              setSelectedEventId(eventId)
+              setIsAddModalOpen(false) // Cierra el modal al confirmar
+            }}
+            onClose={() => setIsAddModalOpen(false)}
+          />
         )}
       </AnimatePresence>
     </div>
