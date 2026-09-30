@@ -28,7 +28,7 @@ function EventCard({ event }: { event: Tables<'events'> }) {
   })
 
   return (
-    <Link href={`/dashboard/events/${event.id}/attendees`} className="block">
+    <Link href={`/dashboard/events/${event.id}`} className="block">
       <article className="neu-card h-full flex flex-col gap-3 cursor-pointer">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
