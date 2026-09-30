@@ -4,6 +4,8 @@ import type { Tables } from '@/types/supabase'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 
+import ResolveIncidentModal from '../../incidents/resolve-modal'
+
 const SEVERITY_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   low: { label: 'Baja', color: '#9b72cf', bgColor: 'rgba(155, 114, 207, 0.1)' },
   medium: { label: 'Media', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.1)' },
@@ -54,7 +56,11 @@ export default function IncidentList({
         })
 
         return (
-          <article key={incident.id} className="neu-card flex flex-col gap-3">
+          <article 
+            key={incident.id} 
+            className="neu-card flex flex-col gap-3 transition-opacity duration-300"
+            style={{ opacity: incident.resolved ? 0.75 : 1 }}
+          >
             <div className="flex items-center gap-2 flex-wrap">
               <span className="neu-badge" style={{ background: severity.bgColor, color: severity.color }}>
                 {severity.label}
@@ -67,14 +73,36 @@ export default function IncidentList({
                   ✓ Resuelto
                 </span>
               ) : (
-                <span className="neu-badge" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-                  Pendiente
-                </span>
+                <ResolveIncidentModal
+                  incidentId={incident.id}
+                  trigger={
+                    <button className="neu-badge cursor-pointer hover:opacity-80 transition-opacity" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', font: 'inherit' }}>
+                      Pendiente (Resolver)
+                    </button>
+                  }
+                />
               )}
             </div>
+            
             <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
               {incident.description}
             </p>
+
+            {/* Resolución Note */}
+            {incident.resolved && incident.resolution_note && (
+              <div 
+                className="mt-2 p-3 rounded-xl"
+                style={{ background: 'var(--surface-deep)', boxShadow: 'var(--shadow-soft-inset)' }}
+              >
+                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                  Nota de solución:
+                </p>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                  &quot;{incident.resolution_note}&quot;
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 mt-auto" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

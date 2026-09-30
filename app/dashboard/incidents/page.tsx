@@ -1,6 +1,7 @@
 import { incidentService } from '@/lib/services/incident.service'
 import { eventService } from '@/lib/services/event.service'
 import ReportIncidentModal from './report-modal'
+import ResolveIncidentModal from './resolve-modal'
 import type { Tables } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -31,7 +32,10 @@ function IncidentCard({ incident }: { incident: Tables<'incidents'> }) {
   })
 
   return (
-    <article className="neu-card flex flex-col gap-3">
+    <article 
+      className="neu-card flex flex-col gap-3 transition-opacity duration-300"
+      style={{ opacity: incident.resolved ? 0.75 : 1 }}
+    >
       {/* Badges */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="neu-badge" style={{ background: severity.bgColor, color: severity.color }}>
@@ -45,9 +49,14 @@ function IncidentCard({ incident }: { incident: Tables<'incidents'> }) {
             ✓ Resuelto
           </span>
         ) : (
-          <span className="neu-badge" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-            Pendiente
-          </span>
+          <ResolveIncidentModal
+            incidentId={incident.id}
+            trigger={
+              <button className="neu-badge cursor-pointer hover:opacity-80 transition-opacity" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', font: 'inherit' }}>
+                Pendiente (Resolver)
+              </button>
+            }
+          />
         )}
       </div>
 
@@ -55,6 +64,21 @@ function IncidentCard({ incident }: { incident: Tables<'incidents'> }) {
       <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
         {incident.description}
       </p>
+
+      {/* Resolution Note */}
+      {incident.resolved && incident.resolution_note && (
+        <div 
+          className="mt-2 p-3 rounded-xl"
+          style={{ background: 'var(--surface-deep)', boxShadow: 'var(--shadow-soft-inset)' }}
+        >
+          <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+            Nota de solución:
+          </p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.4 }}>
+            &quot;{incident.resolution_note}&quot;
+          </p>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="flex items-center gap-2 mt-auto" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>

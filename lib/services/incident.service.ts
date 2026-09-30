@@ -74,11 +74,15 @@ class IncidentService {
     return data
   }
 
-  async resolveIncident(id: string): Promise<Tables<'incidents'>> {
+  async resolveIncident(id: string, resolution_note?: string): Promise<Tables<'incidents'>> {
     const supabase = await createAdminClient()
     const { data, error } = await supabase
       .from('incidents')
-      .update({ resolved: true, resolved_at: new Date().toISOString() })
+      .update({ 
+        resolved: true, 
+        resolved_at: new Date().toISOString(),
+        resolution_note: resolution_note || null 
+      })
       .eq('id', id)
       .select()
       .single()

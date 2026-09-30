@@ -134,6 +134,7 @@ export type Database = {
           description: string
           resolved: boolean
           resolved_at: string | null
+          resolution_note: string | null
           created_at: string
         }
         Insert: {
@@ -144,6 +145,7 @@ export type Database = {
           description: string
           resolved?: boolean
           resolved_at?: string | null
+          resolution_note?: string | null
           created_at?: string
         }
         Update: {
@@ -154,6 +156,7 @@ export type Database = {
           description?: string
           resolved?: boolean
           resolved_at?: string | null
+          resolution_note?: string | null
           created_at?: string
         }
         Relationships: [
