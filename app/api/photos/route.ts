@@ -51,3 +51,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const ids = body.ids
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: 'Se requiere un array de IDs (ids: string[])' },
+        { status: 400 }
+      )
+    }
+
+    await photoService.deletePhotos(ids)
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error desconocido'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+

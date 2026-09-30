@@ -84,37 +84,46 @@ class PhotoService {
     return data || []
   }
 
-  /** Elimina una foto del storage y de la tabla. */
-  async deletePhoto(photoId: string): Promise<void> {
+  /** Elimina varias fotos del storage y de la tabla por array de IDs. */
+  async deletePhotos(photoIds: string[]): Promise<void> {
+    if (photoIds.length === 0) return
     const supabase = createAdminClient()
 
-    // Obtener la URL para extraer el path del storage
-    const { data: photo, error: fetchError } = await supabase
+    // 1. Obtener la URL para extraer el path del storage
+    const { data: photos, error: fetchError } = await supabase
       .from('photos')
       .select('storage_url')
-      .eq('id', photoId)
-      .single()
+      .in('id', photoIds)
 
-    if (fetchError) throw new Error(`Foto no encontrada: ${fetchError.message}`)
+    if (fetchError) throw new Error(`Fotos no encontradas (búsqueda): ${fetchError.message}`)
 
-    // Extraer path del storage desde la URL pública
-    const url = new URL(photo.storage_url)
-    const bucketPrefix = `/storage/v1/object/public/${BUCKET}/`
-    const idx = url.pathname.indexOf(bucketPrefix)
-    if (idx !== -1) {
-      const storagePath = decodeURIComponent(
-        url.pathname.slice(idx + bucketPrefix.length)
-      )
-      await supabase.storage.from(BUCKET).remove([storagePath])
+    // 2. Extraer paths del storage desde las URLs públicas
+    const paths = photos.map((photo) => {
+      const url = new URL(photo.storage_url)
+      const bucketPrefix = `/storage/v1/object/public/${BUCKET}/`
+      const idx = url.pathname.indexOf(bucketPrefix)
+      if (idx !== -1) {
+        return decodeURIComponent(url.pathname.slice(idx + bucketPrefix.length))
+      }
+      return null
+    }).filter((p): p is string => p !== null)
+
+    // 3. Eliminar archivos físicos del Bucket
+    if (paths.length > 0) {
+      const { error: storageError } = await supabase.storage.from(BUCKET).remove(paths)
+      if (storageError) {
+        console.error('Error limpiando bucket:', storageError.message)
+        // Continuamos para intentar borrar en la tabla de todos modos
+      }
     }
 
-    // Eliminar registro de la tabla
+    // 4. Eliminar registros de la BD
     const { error: deleteError } = await supabase
       .from('photos')
       .delete()
-      .eq('id', photoId)
+      .in('id', photoIds)
 
-    if (deleteError) throw new Error(`Error al eliminar foto: ${deleteError.message}`)
+    if (deleteError) throw new Error(`Error al eliminar filas en base de datos: ${deleteError.message}`)
   }
 
   /** Actualizar score de IA (preparación para Sprint futuro). */

@@ -19,6 +19,9 @@ interface UploadingFile {
 export default function AiStudioClient({ events }: { events: Tables<'events'>[] }) {
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [photos, setPhotos] = useState<Tables<'photos'>[]>([])
+  // Estado para la multi-sección
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState<UploadingFile[]>([])
   const [loadingPhotos, setLoadingPhotos] = useState(false)
@@ -29,12 +32,14 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   useEffect(() => {
     if (selectedEventId) {
       setLoadingPhotos(true)
+      setSelectedIds(new Set()) // limpiar selección al cambiar evento
       fetch(`/api/photos?event_id=${selectedEventId}`)
         .then((res) => res.json())
         .then((json) => setPhotos(json.data || []))
         .finally(() => setLoadingPhotos(false))
     } else {
       setPhotos([])
+      setSelectedIds(new Set())
     }
   }, [selectedEventId])
 
@@ -141,6 +146,38 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) handleFiles(e.target.files)
     e.target.value = ''
+  }
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const deleteSelected = async () => {
+    if (selectedIds.size === 0 || isDeleting) return
+    setIsDeleting(true)
+    try {
+      const idsArray = Array.from(selectedIds)
+      const res = await fetch('/api/photos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: idsArray }),
+      })
+      if (!res.ok) throw new Error('Error al eliminar')
+      
+      // Actualizar UI
+      setPhotos((prev) => prev.filter((p) => !selectedIds.has(p.id)))
+      setSelectedIds(new Set())
+    } catch (err) {
+      alert('Hubo un error al eliminar las fotos.')
+      console.error(err)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -338,65 +375,102 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
             ) : (
               <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                 <AnimatePresence>
-                  {photos.map((photo) => (
-                    <motion.div
-                      key={photo.id}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{ duration: 0.2 }}
-                      className="neu-card overflow-hidden flex flex-col gap-2"
-                      style={{ padding: '10px' }}
-                    >
-                      <div
-                        className="rounded-xl overflow-hidden aspect-square"
-                        style={{ boxShadow: 'var(--shadow-soft-inset)' }}
+                  {photos.map((photo) => {
+                    const isSelected = selectedIds.has(photo.id)
+                    return (
+                      <motion.div
+                        key={photo.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: isSelected ? 0.96 : 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={() => toggleSelection(photo.id)}
+                        className="neu-card overflow-hidden flex flex-col gap-2 relative cursor-pointer"
+                        style={{
+                          padding: '10px',
+                          boxShadow: isSelected ? 'var(--shadow-soft-inset)' : 'var(--shadow-soft-raised)',
+                        }}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={photo.storage_url}
-                          alt="Foto del evento"
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
+                        {/* CheckCircle cuando está seleccionada */}
+                        {isSelected && (
+                          <div className="absolute top-4 right-4 z-10 w-6 h-6 rounded-full flex items-center justify-center"
+                               style={{ background: 'var(--accent)', color: '#fff', boxShadow: 'var(--shadow-soft-raised)' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M20 6L9 17l-5-5"/>
+                            </svg>
+                          </div>
+                        )}
 
-                      <div className="flex items-center justify-between px-1">
-                        {photo.ai_score !== null ? (
-                          <span className="neu-badge" style={{ background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '0.65rem' }}>
-                            IA: {photo.ai_score}/100
-                          </span>
-                        ) : (
-                          <span className="neu-badge" style={{ fontSize: '0.65rem' }}>
-                            Sin score
-                          </span>
-                        )}
-                        {photo.is_selected && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                               stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
-                            <path d="M20 6L9 17l-5-5"/>
-                          </svg>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
+                        <div
+                          className="rounded-xl overflow-hidden aspect-square relative"
+                          style={{ boxShadow: 'var(--shadow-soft-inset)' }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo.storage_url}
+                            alt="Foto del evento"
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            style={{ opacity: isSelected ? 0.85 : 1, transition: 'opacity 0.2s' }}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between px-1">
+                          {photo.ai_score !== null ? (
+                            <span className="neu-badge" style={{ background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '0.65rem' }}>
+                              IA: {photo.ai_score}/100
+                            </span>
+                          ) : (
+                            <span className="neu-badge" style={{ fontSize: '0.65rem' }}>
+                              Sin score IA
+                            </span>
+                          )}
+                          {photo.is_selected && (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                 stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+                              <path d="M20 6L9 17l-5-5"/>
+                            </svg>
+                          )}
+                        </div>
+                      </motion.div>
+                    )
+                  })}
                 </AnimatePresence>
               </div>
             )}
           </div>
 
-          {/* Botón IA */}
+          {/* Action Bar (Botón IA + Eliminar) */}
           {photos.length > 0 && (
-            <button
-              className="neu-btn-primary w-full justify-center py-3"
-              onClick={() => alert('🔄 Conectando con Gemini...')}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-              </svg>
-              Analizar evento y crear Post
-            </button>
+            <div className="flex flex-wrap items-center gap-4 mt-2">
+              {selectedIds.size > 0 && (
+                <button
+                  className="neu-btn"
+                  onClick={deleteSelected}
+                  disabled={isDeleting}
+                  style={{ color: '#ef4444' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                  {isDeleting ? 'Eliminando...' : `Eliminar seleccionadas (${selectedIds.size})`}
+                </button>
+              )}
+              <button
+                className="neu-btn-primary flex-1 justify-center py-3"
+                onClick={() => alert(`🔄 Conectando con Gemini para analizar ${selectedIds.size > 0 ? selectedIds.size : photos.length} fotos...`)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+                {selectedIds.size > 0 
+                  ? `Analizar las ${selectedIds.size} fotos seleccionadas`
+                  : `Analizar evento completo y crear Post`}
+              </button>
+            </div>
           )}
         </>
       )}
