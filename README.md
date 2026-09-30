@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EventPulse AI
+
+EventPulse AI es una plataforma web para organizar eventos de principio a fin. Permite gestionar eventos, asistentes, aforo e incidencias, y utiliza inteligencia artificial para ayudar a crear contenido de difusión y analizar fotografías.
 
 ## Getting Started
 
