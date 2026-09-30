@@ -3,12 +3,13 @@
 import { useState, useTransition } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import type { Tables } from '@/types/supabase'
 
 interface ReportIncidentModalProps {
-  eventId: string
+  events: Tables<'events'>[]
 }
 
-export default function ReportIncidentModal({ eventId }: ReportIncidentModalProps) {
+export default function ReportIncidentModal({ events }: ReportIncidentModalProps) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -19,10 +20,15 @@ export default function ReportIncidentModal({ eventId }: ReportIncidentModalProp
     setError(null)
     const data = new FormData(e.currentTarget)
     const body = {
-      event_id: eventId,
+      event_id: data.get('event_id') as string,
       category: data.get('category') as string,
       description: data.get('description') as string,
       severity: data.get('severity') as string,
+    }
+
+    if (!body.event_id) {
+      setError('Selecciona un evento')
+      return
     }
 
     startTransition(async () => {
@@ -105,9 +111,21 @@ export default function ReportIncidentModal({ eventId }: ReportIncidentModalProp
                     </p>
                   )}
 
+                  {/* Selector de evento */}
+                  <Field label="Evento *">
+                    <select name="event_id" required style={selectStyle}>
+                      <option value="">¿De qué evento es el incidente?</option>
+                      {events.map((event) => (
+                        <option key={event.id} value={event.id}>
+                          {event.title} — {new Date(event.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
                   <Field label="Categoría *">
                     <select name="category" required style={selectStyle}>
-                      <option value="">Selecciona categoría…</option>
+                      <option value="">Tipo de incidente…</option>
                       <option value="logistics">Logística</option>
                       <option value="capacity">Capacidad</option>
                       <option value="hardware">Hardware</option>
@@ -118,11 +136,11 @@ export default function ReportIncidentModal({ eventId }: ReportIncidentModalProp
 
                   <Field label="Severidad *">
                     <select name="severity" required style={selectStyle}>
-                      <option value="">Selecciona severidad…</option>
-                      <option value="low">Baja</option>
-                      <option value="medium">Media</option>
-                      <option value="high">Alta</option>
-                      <option value="critical">Crítica</option>
+                      <option value="">Nivel de urgencia…</option>
+                      <option value="low">🟢 Baja</option>
+                      <option value="medium">🟡 Media</option>
+                      <option value="high">🔴 Alta</option>
+                      <option value="critical">⛔ Crítica</option>
                     </select>
                   </Field>
 
@@ -130,7 +148,7 @@ export default function ReportIncidentModal({ eventId }: ReportIncidentModalProp
                     <textarea
                       name="description"
                       required
-                      placeholder="Describe el incidente con detalle…"
+                      placeholder="Describe el incidente con detalle (mín. 10 caracteres)…"
                       rows={4}
                       style={textareaStyle}
                     />
@@ -142,13 +160,19 @@ export default function ReportIncidentModal({ eventId }: ReportIncidentModalProp
                     </button>
                     <button
                       type="submit"
-                      disabled={isPending}
+                      disabled={isPending || events.length === 0}
                       className="neu-btn-primary flex-1 justify-center"
                       style={{ opacity: isPending ? 0.7 : 1 }}
                     >
                       {isPending ? 'Reportando…' : 'Reportar'}
                     </button>
                   </div>
+
+                  {events.length === 0 && (
+                    <p className="text-center text-xs" style={{ color: 'var(--text-muted)', marginTop: 4 }}>
+                      Necesitas crear un evento primero para poder reportar incidentes.
+                    </p>
+                  )}
                 </form>
               </div>
             </motion.div>

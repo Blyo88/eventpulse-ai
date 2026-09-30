@@ -12,6 +12,19 @@ export const incidentSchema = z.object({
 export type IncidentInput = z.infer<typeof incidentSchema>
 
 class IncidentService {
+  async getAllIncidents(eventIds: string[]): Promise<Tables<'incidents'>[]> {
+    if (eventIds.length === 0) return []
+    const supabase = await createAdminClient()
+    const { data, error } = await supabase
+      .from('incidents')
+      .select('*')
+      .in('event_id', eventIds)
+      .order('created_at', { ascending: false })
+
+    if (error) throw new Error(`Failed to fetch incidents: ${error.message}`)
+    return data || []
+  }
+
   async getIncidentsByEventId(eventId: string): Promise<Tables<'incidents'>[]> {
     const supabase = await createAdminClient()
     const { data, error } = await supabase

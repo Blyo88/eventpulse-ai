@@ -1,4 +1,5 @@
 import { incidentService } from '@/lib/services/incident.service'
+import { eventService } from '@/lib/services/event.service'
 import ReportIncidentModal from './report-modal'
 import type { Tables } from '@/types/supabase'
 
@@ -31,23 +32,14 @@ function IncidentCard({ incident }: { incident: Tables<'incidents'> }) {
 
   return (
     <article className="neu-card flex flex-col gap-3">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
+      {/* Badges */}
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="neu-badge" style={{ background: severity.bgColor, color: severity.color }}>
           {severity.label}
         </span>
         <span className="neu-badge" style={{ background: 'var(--surface-deep)', color: 'var(--text-muted)' }}>
           {category.label}
         </span>
-      </div>
-
-      {/* Description */}
-      <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
-        {incident.description}
-      </p>
-
-      {/* Status */}
-      <div className="flex items-center gap-2">
         {incident.resolved ? (
           <span className="neu-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
             ✓ Resuelto
@@ -59,8 +51,13 @@ function IncidentCard({ incident }: { incident: Tables<'incidents'> }) {
         )}
       </div>
 
+      {/* Description */}
+      <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+        {incident.description}
+      </p>
+
       {/* Footer */}
-      <div className="flex items-center gap-2 mt-2" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+      <div className="flex items-center gap-2 mt-auto" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="4" width="18" height="18" rx="2"/>
@@ -87,18 +84,94 @@ function EmptyState() {
         Sin incidentes
       </h3>
       <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', textAlign: 'center', maxWidth: 280 }}>
-        Espera que ocurra algo y podrás reportar incidentes aquí. ¡Esperamos que todo vaya bien!
+        No hay incidentes reportados en ningún evento. ¡Todo va bien!
       </p>
     </div>
   )
 }
 
-export default async function IncidentsPage() {
-  // Por ahora pasamos un ID de evento demo — en producción vendría de un selector
-  const incidents = await incidentService.getIncidentsByEventId('demo-event-id').catch(() => [])
+function EventSection({
+  event,
+  incidents,
+}: {
+  event: Tables<'events'>
+  incidents: Tables<'incidents'>[]
+}) {
+  const openCount = incidents.filter((i) => !i.resolved).length
+  const resolvedCount = incidents.filter((i) => i.resolved).length
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl">
+    <section className="flex flex-col gap-4">
+      {/* Event header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div
+            className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full"
+            style={{ boxShadow: 'var(--shadow-soft-raised)', background: 'var(--surface)' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <path d="M16 2v4M8 2v4M3 10h18"/>
+            </svg>
+          </div>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+              {event.title}
+            </h2>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {new Date(event.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {event.location ? ` · ${event.location}` : ''}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {openCount > 0 && (
+            <span className="neu-badge" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+              {openCount} abierto{openCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          {resolvedCount > 0 && (
+            <span className="neu-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+              {resolvedCount} resuelto{resolvedCount !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Incident cards grid */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {incidents.map((incident) => (
+          <IncidentCard key={incident.id} incident={incident} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+export default async function IncidentsPage() {
+  // Traer todos los eventos del usuario
+  const events = await eventService.getEvents()
+  const eventIds = events.map((e) => e.id)
+
+  // Traer todos los incidentes de todos los eventos del usuario
+  const allIncidents = await incidentService.getAllIncidents(eventIds)
+
+  // Armar el mapa de incidentes { eventId -> incidents[] }
+  const incidentsByEvent = new Map<string, Tables<'incidents'>[]>()
+  for (const incident of allIncidents) {
+    const list = incidentsByEvent.get(incident.event_id) || []
+    list.push(incident)
+    incidentsByEvent.set(incident.event_id, list)
+  }
+
+  // Eventos con incidentes primero, luego el resto
+  const eventsWithIncidents = events.filter((e) => incidentsByEvent.has(e.id))
+  const totalIncidents = allIncidents.length
+  const totalOpen = allIncidents.filter((i) => !i.resolved).length
+
+  return (
+    <div className="flex flex-col gap-8 max-w-6xl">
       {/* Page header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
@@ -106,22 +179,29 @@ export default async function IncidentsPage() {
             Incidentes en vivo
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: 2 }}>
-            {incidents.length} incidente{incidents.length !== 1 ? 's' : ''} registrado{incidents.length !== 1 ? 's' : ''}
+            {totalIncidents} incidente{totalIncidents !== 1 ? 's' : ''} en {eventsWithIncidents.length} evento{eventsWithIncidents.length !== 1 ? 's' : ''}
+            {totalOpen > 0 && (
+              <span style={{ color: '#ef4444', fontWeight: 600 }}>
+                {' '}· {totalOpen} pendiente{totalOpen !== 1 ? 's' : ''}
+              </span>
+            )}
           </p>
         </div>
-        <ReportIncidentModal eventId="demo-event-id" />
+        <ReportIncidentModal events={events} />
       </div>
 
-      {/* Grid */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {incidents.length === 0 ? (
-          <EmptyState />
-        ) : (
-          incidents.map((incident) => (
-            <IncidentCard key={incident.id} incident={incident} />
-          ))
-        )}
-      </div>
+      {/* Secciones agrupadas por evento */}
+      {eventsWithIncidents.length === 0 ? (
+        <EmptyState />
+      ) : (
+        eventsWithIncidents.map((event) => (
+          <EventSection
+            key={event.id}
+            event={event}
+            incidents={incidentsByEvent.get(event.id) || []}
+          />
+        ))
+      )}
     </div>
   )
 }
