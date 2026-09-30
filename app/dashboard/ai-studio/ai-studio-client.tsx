@@ -262,20 +262,9 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     <div className="flex flex-col gap-6">
       {/* Selector de evento */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-            Selecciona un evento
-          </label>
-          
-          {selectedEventId && !loadingPhotos && (
-            <span className="neu-badge" style={{ 
-              background: aiResult ? 'rgba(16, 185, 129, 0.1)' : photos.length > 0 ? 'var(--surface-deep)' : 'rgba(239, 68, 68, 0.1)', 
-              color: aiResult ? '#10b981' : photos.length > 0 ? 'var(--text-secondary)' : '#ef4444' 
-            }}>
-              {aiResult ? '✨ Análisis completado' : photos.length > 0 ? `Fotos sin analizar (${photos.length})` : 'Sin fotos'}
-            </span>
-          )}
-        </div>
+        <label style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+          Selecciona un evento
+        </label>
         
         <select
           value={selectedEventId}
@@ -302,9 +291,65 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
         </select>
       </div>
 
-      {selectedEventId && (
-        <>
-          {/* Drop Zone */}
+      {selectedEventId && (() => {
+        const selectedEvent = events.find((e) => e.id === selectedEventId)
+        if (!selectedEvent) return null
+
+        return (
+          <>
+            {/* Tarjeta de Estado de la IA de Evento */}
+            <div 
+              className="neu-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+              style={{
+                position: 'sticky', // Help visual persistence
+                top: '1rem',
+                zIndex: 10,
+              }}
+            >
+              <div>
+                <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                  {selectedEvent.title}
+                </h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 4 }}>
+                  {new Date(selectedEvent.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+
+              <div className="flex gap-4 items-center flex-wrap">
+                <div className="flex flex-col items-center">
+                  <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+                    Fotografías en Galería
+                  </span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {loadingPhotos ? '...' : photos.length}
+                  </span>
+                </div>
+                
+                <div style={{ width: '1px', height: '32px', background: 'var(--surface-deep)', boxShadow: 'var(--shadow-soft-inset)' }} className="hidden sm:block"></div>
+
+                <div className="flex flex-col items-center">
+                  <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+                    Estado de IA
+                  </span>
+                  <span 
+                    style={{ 
+                      fontSize: '0.85rem', 
+                      fontWeight: 700, 
+                      marginTop: 4,
+                      color: aiResult ? '#10b981' : (photos.length > 0 ? '#f59e0b' : '#ef4444')
+                    }}
+                  >
+                    {loadingPhotos 
+                      ? '...' 
+                      : aiResult 
+                        ? 'Análisis Completado ✅' 
+                        : (photos.length > 0 ? 'Pendiente ⏳' : 'Sin fotos 📷')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Drop Zone */}
           <div
             onDrop={onDrop}
             onDragOver={onDragOver}
@@ -571,7 +616,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                     </svg>
                     {selectedIds.size > 0 
                       ? `Analizar las ${selectedIds.size} fotos seleccionadas`
-                      : aiResult ? `Volver a analizar con IA` : `Analizar evento completo y crear Post`}
+                      : aiResult ? `Volver a analizar (Actualizar)` : `Analizar evento completo y crear Post`}
                   </>
                 )}
               </button>
@@ -671,8 +716,8 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
               </motion.div>
             )}
           </AnimatePresence>
-        </>
-      )}
+          </>
+        )})()}
     </div>
   )
 }
