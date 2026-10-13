@@ -83,10 +83,59 @@ export type Database = {
           }
         ]
       }
+      organizations: {
+        Row: {
+          id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      organization_members: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          role: 'owner' | 'admin' | 'editor' | 'spectator'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          user_id: string
+          role?: 'owner' | 'admin' | 'editor' | 'spectator'
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          user_id?: string
+          role?: 'owner' | 'admin' | 'editor' | 'spectator'
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       events: {
         Row: {
           id: string
-          user_id: string
+          organization_id: string
           title: string
           description: string | null
           date: string
@@ -101,7 +150,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          user_id: string
+          organization_id: string
           title: string
           description?: string | null
           date: string
@@ -116,7 +165,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          user_id?: string
+          organization_id?: string
           title?: string
           description?: string | null
           date?: string
@@ -129,7 +178,14 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_organization_id_fkey"
+            columns: ["organization_id"]
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       attendees: {
         Row: {

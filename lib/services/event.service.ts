@@ -10,24 +10,23 @@ type EventRow = Tables<'events'>
  * Identificador del usuario demo.
  *
  * Sustituye a `auth.getUser()` hasta que exista la fase de autenticación.
- * `events.user_id` referencia `auth.users(id)`, así que este UUID debe
- * existir en `auth.users` o el INSERT viola la FK. Lo crea
- * `scripts/seed-demo-user.mjs`.
  */
-export const DEMO_USER_ID = '00000000-0000-0000-0000-000000000001'
 
 export const eventService = {
-  async createEvent(input: CreateEventInput): Promise<EventRow> {
+  async createEvent(input: CreateEventInput, organizationId: string): Promise<EventRow> {
     const supabase = createAdminClient()
 
     const eventData: TablesInsert<'events'> = {
-      user_id: DEMO_USER_ID,
+      organization_id: organizationId,
       title: input.title,
       description: input.description ?? null,
       date: input.date,
       location: input.location ?? null,
       capacity: input.capacity,
       status: 'draft',
+      is_virtual: input.is_virtual,
+      enable_check_in: input.enable_check_in,
+      enable_location_heat_map: input.enable_location_heat_map,
     }
 
     const { data, error } = await supabase
@@ -43,13 +42,13 @@ export const eventService = {
     return data
   },
 
-  async getEvents(): Promise<EventRow[]> {
+  async getEvents(organizationId: string): Promise<EventRow[]> {
     const supabase = createAdminClient()
 
     const { data, error } = await supabase
       .from('events')
       .select('*')
-      .eq('user_id', DEMO_USER_ID)
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -59,14 +58,14 @@ export const eventService = {
     return data
   },
 
-  async getEventById(eventId: string): Promise<EventRow> {
+  async getEventById(eventId: string, organizationId: string): Promise<EventRow> {
     const supabase = createAdminClient()
 
     const { data, error } = await supabase
       .from('events')
       .select('*')
       .eq('id', eventId)
-      .eq('user_id', DEMO_USER_ID)
+      .eq('organization_id', organizationId)
       .single()
 
     if (error) {
@@ -76,26 +75,7 @@ export const eventService = {
     return data
   },
 
-  async getEventStats(eventId: string): Promise<{ total: number; checkedIn: number; showUpRate: number }> {
-    const supabase = createAdminClient()
-
-    const { data, error } = await supabase
-      .from('attendees')
-      .select('checked_in')
-      .eq('event_id', eventId)
-
-    if (error) {
-      throw new Error(`Failed to fetch event stats: ${error.message}`)
-    }
-
-    const total = data.length
-    const checkedIn = data.reduce((acc, attendee) => acc + (attendee.checked_in ? 1 : 0), 0)
-    const showUpRate = total > 0 ? Math.round((checkedIn / total) * 100) : 0
-
-    return { total, checkedIn, showUpRate }
-  },
-
-  async updateEventStatus(eventId: string, status: EventStatus): Promise<EventRow> {
+  async updateEventStatus(eventId: string, status: EventStatus, organizationId: string): Promise<EventRow> {
     const supabase = createAdminClient()
 
     const patch: TablesUpdate<'events'> = { status }
@@ -104,7 +84,7 @@ export const eventService = {
       .from('events')
       .update(patch)
       .eq('id', eventId)
-      .eq('user_id', DEMO_USER_ID)
+      .eq('organization_id', organizationId)
       .select('*')
       .single()
 
@@ -115,14 +95,14 @@ export const eventService = {
     return data
   },
 
-  async updateEvent(eventId: string, updates: TablesUpdate<'events'>): Promise<EventRow> {
+  async updateEvent(eventId: string, updates: TablesUpdate<'events'>, organizationId: string): Promise<EventRow> {
     const supabase = createAdminClient()
 
     const { data, error } = await supabase
       .from('events')
       .update(updates)
       .eq('id', eventId)
-      .eq('user_id', DEMO_USER_ID)
+      .eq('organization_id', organizationId)
       .select('*')
       .single()
 
@@ -133,19 +113,20 @@ export const eventService = {
     return data
   },
 
-  async deleteEvent(eventId: string): Promise<void> {
+  async deleteEvent(eventId: string, organizationId: string): Promise<void> {
     const supabase = createAdminClient()
 
     const { error } = await supabase
       .from('events')
       .delete()
       .eq('id', eventId)
-      .eq('user_id', DEMO_USER_ID)
+      .eq('organization_id', organizationId)
 
     if (error) {
       throw new Error(`Failed to delete event: ${error.message}`)
     }
   },
+
 }
 
 /** Reexportado para los Route Handlers que necesiten el tipo de fila. */

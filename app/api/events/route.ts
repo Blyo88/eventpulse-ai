@@ -6,12 +6,17 @@ import { ZodError } from 'zod'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const organizationId = request.headers.get('x-organization-id')
+
+    if (!organizationId) {
+        return NextResponse.json({ success: false, error: 'Organization ID required' }, { status: 400 })
+    }
 
     // Validate with Zod
     const validatedData = createEventSchema.parse(body)
 
     // Create event via service
-    const event = await eventService.createEvent(validatedData)
+    const event = await eventService.createEvent(validatedData, organizationId)
 
     return NextResponse.json(
       {
@@ -57,9 +62,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const events = await eventService.getEvents()
+    const organizationId = request.headers.get('x-organization-id')
+
+    if (!organizationId) {
+        return NextResponse.json({ success: false, error: 'Organization ID required' }, { status: 400 })
+    }
+
+    const events = await eventService.getEvents(organizationId)
 
     return NextResponse.json(
       {
