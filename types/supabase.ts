@@ -140,6 +140,7 @@ export type Database = {
           registered_via: string
           checked_in: boolean
           checked_in_at: string | null
+          access_token: string | null
           created_at: string
         }
         Insert: {
@@ -150,6 +151,7 @@ export type Database = {
           registered_via?: string
           checked_in?: boolean
           checked_in_at?: string | null
+          access_token?: string | null
           created_at?: string
         }
         Update: {
@@ -160,6 +162,7 @@ export type Database = {
           registered_via?: string
           checked_in?: boolean
           checked_in_at?: string | null
+          access_token?: string | null
           created_at?: string
         }
         Relationships: [

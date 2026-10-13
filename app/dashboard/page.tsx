@@ -4,6 +4,7 @@ import { attendeeService } from '@/lib/services/attendee.service'
 import Link from 'next/link'
 import * as motion from 'framer-motion/client'
 import SpotlightCard from '@/app/components/spotlight-card'
+import type { Tables } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +18,7 @@ export default async function DashboardIndex() {
     attendeeService.countAllAttendees(eventIds),
   ])
 
-  const openIncidents = incidents.filter(i => !i.resolved).length
+  const openIncidents = incidents.filter((i: Tables<'incidents'>) => !i.resolved).length
 
   return (
     <div className="flex flex-col gap-8 max-w-6xl">

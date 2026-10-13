@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { eventService } from '@/lib/services/event.service' // Añadimos import
 import type { CheckInAttendeeInput, RegisterAttendeeInput } from '@/lib/validations'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 
@@ -25,6 +26,10 @@ export const attendeeService = {
 
   async registerAttendee(input: RegisterAttendeeInput): Promise<AttendeeRow> {
     const supabase = createAdminClient()
+    
+    // 1. Consultar habilitación del check-in
+    const event = await eventService.getEventById(input.event_id)
+    const shouldGenerateToken = event?.enable_check_in
 
     const attendeeData: TablesInsert<'attendees'> = {
       event_id: input.event_id,
@@ -32,6 +37,8 @@ export const attendeeService = {
       email: input.email,
       registered_via: input.registered_via,
       checked_in: false,
+      // 2. Generar token SI habilitado, si no, NULL
+      access_token: shouldGenerateToken ? crypto.randomUUID() : null,
     }
 
     const { data, error } = await supabase
@@ -46,6 +53,9 @@ export const attendeeService = {
 
     return data
   },
+  
+  // ... (resto)
+
 
   async getAttendeesByEventId(eventId: string): Promise<AttendeeRow[]> {
     const supabase = createAdminClient()
