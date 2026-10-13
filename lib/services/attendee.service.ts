@@ -24,6 +24,21 @@ export const attendeeService = {
     return count || 0
   },
 
+  async getAttendeeCounts(eventId: string): Promise<{ present: number; pending: number }> {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('attendees')
+      .select('checked_in')
+      .eq('event_id', eventId);
+
+    if (error) throw new Error(`Failed to count attendees: ${error.message}`);
+    
+    const present = data.filter(a => a.checked_in).length;
+    const pending = data.length - present;
+    
+    return { present, pending };
+  },
+
   async registerAttendee(input: RegisterAttendeeInput): Promise<AttendeeRow> {
     const supabase = createAdminClient()
     

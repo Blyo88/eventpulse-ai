@@ -5,8 +5,20 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import { processQRCodeAction } from './[eventId]/actions'
 
-export default function LiveCheckInScanner({ eventId, enableHeatMap }: { eventId: string, enableHeatMap: boolean }) {
+export default function LiveCheckInScanner({ 
+  eventId, 
+  enableHeatMap,
+  initialPresent,
+  initialPending
+}: { 
+  eventId: string, 
+  enableHeatMap: boolean,
+  initialPresent: number,
+  initialPending: number
+}) {
   const [activeTab, setActiveTab] = useState<'presentes' | 'pendientes'>('pendientes')
+  const [presentCount, setPresentCount] = useState(initialPresent)
+  const [pendingCount, setPendingCount] = useState(initialPending)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isScanning, setIsScanning] = useState(true)
 
@@ -31,7 +43,8 @@ export default function LiveCheckInScanner({ eventId, enableHeatMap }: { eventId
     
     if (result.success) {
       setToast({ message: result.message, type: 'success' })
-      // Aquí se aplicaría el Optimistic UI (mover de pendiente a presente)
+      setPresentCount(prev => prev + 1)
+      setPendingCount(prev => Math.max(0, prev - 1))
     } else {
       setToast({ message: result.message, type: 'error' })
     }
@@ -58,7 +71,18 @@ export default function LiveCheckInScanner({ eventId, enableHeatMap }: { eventId
 
       {/* Tabs */}
       <div className="flex gap-2 p-1 neu-card rounded-full">
-        {/* ... (tabs intactas) */}
+        <button 
+           className={`flex-1 py-3 rounded-full ${activeTab === 'pendientes' ? 'bg-accent text-white' : 'transparent'}`}
+           onClick={() => setActiveTab('pendientes')}
+        >
+          Pendientes ({pendingCount})
+        </button>
+        <button 
+           className={`flex-1 py-3 rounded-full ${activeTab === 'presentes' ? 'bg-accent text-white' : 'transparent'}`}
+           onClick={() => setActiveTab('presentes')}
+        >
+          Presentes ({presentCount})
+        </button>
       </div>
 
       {/* Scanner UI */}
