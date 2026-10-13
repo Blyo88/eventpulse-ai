@@ -49,14 +49,33 @@ function IncidentCard({ incident }: { incident: Tables<'incidents'> }) {
             ✓ Resuelto
           </span>
         ) : (
-          <ResolveIncidentModal
-            incidentId={incident.id}
-            trigger={
-              <button className="neu-badge cursor-pointer hover:opacity-80 transition-opacity" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', font: 'inherit' }}>
-                Pendiente (Resolver)
-              </button>
-            }
-          />
+          <>
+            <span className="neu-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+              ⏳ Pendiente
+            </span>
+            <ResolveIncidentModal
+              incidentId={incident.id}
+              trigger={
+                <button 
+                  className="neu-btn text-xs px-3 py-1 spring-interactive" 
+                  style={{ 
+                    minHeight: '28px', 
+                    fontSize: '0.75rem',
+                    background: 'var(--glass-bg)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid var(--glass-border)',
+                    color: 'var(--text-secondary)'
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 12l2 2 4-4"/>
+                    <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.68.94 6.36 2.64"/>
+                  </svg>
+                  Resolver
+                </button>
+              }
+            />
+          </>
         )}
       </div>
 
