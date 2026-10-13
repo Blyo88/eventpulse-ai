@@ -2,7 +2,7 @@ import { organizationService } from '@/lib/services/organization.service'
 import WorkspaceContent from './WorkspaceContent'
 
 // Provisional DEMO ID
-const DEMO_ORG_ID = 'demo-org-id'
+const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export default async function WorkspaceSettingsPage() {
   const org = await organizationService.getOrganization(DEMO_ORG_ID)

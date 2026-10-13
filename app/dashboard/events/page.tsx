@@ -127,7 +127,7 @@ function EmptyState() {
 }
 
 // Provisional DEMO ID
-const DEMO_ORG_ID = 'demo-org-id'
+const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export default async function EventsPage() {
   const events = await eventService.getEvents(DEMO_ORG_ID)

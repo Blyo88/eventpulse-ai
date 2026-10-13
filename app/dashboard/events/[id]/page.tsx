@@ -44,7 +44,7 @@ function StatBox({
   )
 }
 
-const DEMO_ORG_ID = 'demo-org-id'
+const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export default async function EventDetailPage({
   params,

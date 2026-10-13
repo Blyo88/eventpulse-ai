@@ -5,7 +5,7 @@ import type { Tables } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic'
 
-const DEMO_ORG_ID = 'demo-org-id'
+const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export default async function AiStudioPage() {
   const events = await eventService.getEvents(DEMO_ORG_ID)
