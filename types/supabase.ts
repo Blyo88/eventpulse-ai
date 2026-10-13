@@ -141,6 +141,8 @@ export type Database = {
           checked_in: boolean
           checked_in_at: string | null
           access_token: string | null
+          latitude: number | null
+          longitude: number | null
           created_at: string
         }
         Insert: {
@@ -152,6 +154,8 @@ export type Database = {
           checked_in?: boolean
           checked_in_at?: string | null
           access_token?: string | null
+          latitude?: number | null
+          longitude?: number | null
           created_at?: string
         }
         Update: {
@@ -163,6 +167,8 @@ export type Database = {
           checked_in?: boolean
           checked_in_at?: string | null
           access_token?: string | null
+          latitude?: number | null
+          longitude?: number | null
           created_at?: string
         }
         Relationships: [

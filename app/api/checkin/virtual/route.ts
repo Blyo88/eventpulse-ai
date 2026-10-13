@@ -41,6 +41,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Error al procesar check-in' }, { status: 500 })
   }
 
-  // 4. Redirigir a éxito
-  return NextResponse.redirect(new URL('/checkin/success', request.url))
+  // 4. Redirigir a éxito con IDs para heatmap si aplica
+  const redirectUrl = new URL('/checkin/success', request.url)
+  redirectUrl.searchParams.set('attendeeId', attendee.id)
+  if (event.enable_location_heat_map) {
+    redirectUrl.searchParams.set('heatmap', 'true')
+  }
+
+  return NextResponse.redirect(redirectUrl)
 }
