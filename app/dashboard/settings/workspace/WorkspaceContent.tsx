@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import SpotlightCard from '@/app/components/spotlight-card'
-import InviteMemberModal from '@/app/components/modals/InviteMemberModal'
+import { CollaboratorDrawer } from '@/app/components/collaborator-drawer'
 
 const ROLE_COLORS: Record<string, { bg: string, text: string }> = {
   owner: { bg: 'rgba(155, 114, 207, 0.2)', text: '#9b72cf' },
@@ -13,7 +13,7 @@ const ROLE_COLORS: Record<string, { bg: string, text: string }> = {
 }
 
 export default function WorkspaceContent({ org, members, orgId }: any) {
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
@@ -23,7 +23,7 @@ export default function WorkspaceContent({ org, members, orgId }: any) {
             Configuración del Espacio: {org.name}
           </h1>
         </div>
-        <button className="neu-btn-primary" onClick={() => setIsModalOpen(true)}>Invitar Colaborador</button>
+        <button className="neu-btn-primary" onClick={() => setIsDrawerOpen(true)}>Invitar Colaborador</button>
       </motion.div>
 
       <div className="grid gap-4">
@@ -34,7 +34,12 @@ export default function WorkspaceContent({ org, members, orgId }: any) {
           </SpotlightCard>
         ))}
       </div>
-      <InviteMemberModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} orgId={orgId} onInviteSuccess={() => window.location.reload()} />
+      <CollaboratorDrawer 
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)} 
+        orgId={orgId} 
+        onInviteSuccess={() => window.location.reload()} 
+      />
     </div>
   )
 }
