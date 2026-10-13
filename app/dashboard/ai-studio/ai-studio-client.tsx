@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import type { Tables } from '@/types/supabase'
 import AddEventModal from './add-event-modal'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE_MB = 10
+
+const springConfig = { type: "spring" as const, stiffness: 400, damping: 25 }
 
 interface UploadingFile {
   id: string
@@ -24,6 +26,51 @@ interface AiResult {
     reason: string;
   }[];
   generated_copy: string;
+}
+
+/* ── Animated Counter Hook ── */
+function AnimatedCounter({ value, duration = 1.2 }: { value: number; duration?: number }) {
+  const motionVal = useMotionValue(0)
+  const springVal = useSpring(motionVal, { stiffness: 60, damping: 20 })
+  const rounded = useTransform(springVal, (latest: number) => Math.round(latest))
+  const [display, setDisplay] = useState(0)
+
+  useEffect(() => {
+    motionVal.set(value)
+  }, [value, motionVal])
+
+  useEffect(() => {
+    const unsub = rounded.on('change', (v: number) => setDisplay(v))
+    return unsub
+  }, [rounded])
+
+  return <>{display}</>
+}
+
+/* ── Spotlight Card Wrapper ── */
+function SpotlightCard({ children, className, style, onClick }: { 
+  children: React.ReactNode; className?: string; style?: React.CSSProperties; onClick?: () => void 
+}) {
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!cardRef.current) return
+    const rect = cardRef.current.getBoundingClientRect()
+    cardRef.current.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`)
+    cardRef.current.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`)
+  }
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onClick={onClick}
+      className={`spotlight-card ${className || ''}`}
+      style={style}
+    >
+      {children}
+    </div>
+  )
 }
 
 export default function AiStudioClient({ events }: { events: Tables<'events'>[] }) {
@@ -354,63 +401,69 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                   return (
                     <motion.div
                       key={event.id}
-                      whileHover={{ y: -3 }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ duration: 0.15 }}
+                      layoutId={`event-card-${event.id}`}
+                      whileHover={{ y: -4, scale: 1.01 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={springConfig}
                       onClick={() => setSelectedEventId(event.id)}
-                      className="neu-card cursor-pointer flex flex-col gap-4"
-                      style={{ padding: '24px' }}
+                      className="spring-interactive"
                     >
-                      {/* Nombre + Fecha */}
-                      <div>
-                        <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                          {event.title}
-                        </h3>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 4 }}>
-                          {new Date(event.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        </p>
-                      </div>
+                      <SpotlightCard
+                        className="neu-card cursor-pointer flex flex-col gap-4"
+                        style={{ padding: '24px' }}
+                      >
+                        {/* Nombre + Fecha */}
+                        <div>
+                          <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                            {event.title}
+                          </h3>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 4 }}>
+                            {new Date(event.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                          </p>
+                        </div>
 
-                      {/* Fotos en galería */}
-                      <div className="flex items-center gap-2">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                             stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="18" height="18" rx="2"/>
-                          <circle cx="8.5" cy="8.5" r="1.5"/>
-                          <path d="M21 15l-5-5L5 21"/>
-                        </svg>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                          Fotos en galería: <strong>{photoCount}</strong>
-                        </span>
-                      </div>
+                        {/* Fotos en galería con contador animado */}
+                        <div className="flex items-center gap-2">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                               stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                          </svg>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            Fotos en galería: <strong><AnimatedCounter value={photoCount} /></strong>
+                          </span>
+                        </div>
 
-                      {/* Badge Estado IA */}
-                      <div className="mt-auto">
-                        {hasAi ? (
-                          <span className="neu-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
-                            Completado ✅
-                          </span>
-                        ) : photoCount > 0 ? (
-                          <span className="neu-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
-                            Pendiente ⏳
-                          </span>
-                        ) : (
-                          <span className="neu-badge" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-                            Sin fotos 📷
-                          </span>
-                        )}
-                      </div>
+                        {/* Badge Estado IA */}
+                        <div className="mt-auto">
+                          {hasAi ? (
+                            <span className="neu-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                              Completado ✅
+                            </span>
+                          ) : photoCount > 0 ? (
+                            <span className="neu-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                              Pendiente ⏳
+                            </span>
+                          ) : (
+                            <span className="neu-badge" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                              Sin fotos 📷
+                            </span>
+                          )}
+                        </div>
+                      </SpotlightCard>
                     </motion.div>
                   )
                 })}
 
                 {/* Botón (+) Neumórfico para Añadir Evento */}
                 <motion.button
-                  whileHover={{ scale: 1.02, y: -3 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.03, y: -4 }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={springConfig}
                   onClick={() => setIsAddModalOpen(true)}
-                  className="neu-card flex flex-col items-center justify-center cursor-pointer min-h-[180px]"
-                  style={{ border: 'none', background: 'var(--surface)', padding: '24px' }}
+                  className="neu-card flex flex-col items-center justify-center cursor-pointer min-h-[180px] spring-interactive"
+                  style={{ background: 'var(--glass-bg)', padding: '24px' }}
                 >
                   <div 
                     className="w-14 h-14 rounded-full flex items-center justify-center mb-2"
@@ -434,35 +487,42 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
              ================================================================ */
           <motion.div
             key="studio-view"
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 40 }}
-            transition={{ duration: 0.25 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
             className="flex flex-col gap-6"
           >
             {/* Botón Volver e Info de Evento */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <button
+              <motion.button
                 onClick={handleBackToGrid}
-                className="neu-btn"
+                className="neu-btn spring-interactive"
                 style={{ gap: 8 }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.95 }}
+                transition={springConfig}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 12H5M12 19l-7-7 7-7"/>
                 </svg>
                 Volver a todos los eventos
-              </button>
+              </motion.button>
 
               {selectedEvent && (
-                <div className="text-right">
+                <motion.div 
+                  layoutId={`event-card-${selectedEvent.id}`}
+                  className="text-right"
+                  transition={springConfig}
+                >
                   <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
                     {selectedEvent.title}
                   </h2>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                     {new Date(selectedEvent.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
-                </div>
+                </motion.div>
               )}
             </div>
 
@@ -635,14 +695,20 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: isSelected ? 0.96 : 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ duration: 0.2 }}
+                        whileHover={{ y: -3 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={springConfig}
                         onClick={() => toggleSelection(photo.id)}
-                        className="neu-card overflow-hidden flex flex-col gap-2 relative cursor-pointer"
+                        className="neu-card overflow-hidden flex flex-col gap-2 relative cursor-pointer spring-interactive"
                         style={{
                           padding: '10px',
                           boxShadow: isSelected ? 'var(--shadow-soft-inset)' : 'var(--shadow-soft-raised)',
                         }}
                       >
+                        {/* AI Scan overlay while analyzing */}
+                        {isAnalyzing && (selectedIds.size === 0 || selectedIds.has(photo.id)) && (
+                          <div className="ai-scan-overlay" />
+                        )}
                         {/* CheckCircle cuando está seleccionada */}
                         {isSelected && (
                           <div className="absolute top-4 right-4 z-10 w-6 h-6 rounded-full flex items-center justify-center"
@@ -710,23 +776,34 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                   {isDeleting ? 'Eliminando...' : `Eliminar seleccionadas (${selectedIds.size})`}
                 </button>
               )}
-              <button
-                className="neu-btn-primary flex-1 justify-center py-3"
+              <motion.button
+                className="neu-btn-primary flex-1 justify-center py-3 spring-interactive"
                 onClick={handleAnalyze}
                 disabled={isAnalyzing}
-                style={{ opacity: isAnalyzing ? 0.7 : 1 }}
+                whileHover={isAnalyzing ? undefined : { scale: 1.02 }}
+                whileTap={isAnalyzing ? undefined : { scale: 0.97 }}
+                transition={springConfig}
+                style={{ opacity: isAnalyzing ? 0.85 : 1, position: 'relative', overflow: 'hidden' }}
               >
+                {isAnalyzing && (
+                  <motion.div
+                    className="ai-gradient-pulse"
+                    style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.5 }}
+                  />
+                )}
                 {isAnalyzing ? (
-                  <>
+                  <span className="relative z-10 flex items-center gap-2">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="animate-spin">
                       <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" strokeOpacity=".3"/>
                       <path d="M12 3a9 9 0 0 1 9 9"/>
                     </svg>
                     Analizando con IA...
-                  </>
+                  </span>
                 ) : (
-                  <>
+                  <span className="relative z-10 flex items-center gap-2">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -734,9 +811,9 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                     {selectedIds.size > 0 
                       ? `Analizar las ${selectedIds.size} fotos seleccionadas`
                       : aiResult ? `Volver a analizar con IA` : `Analizar evento completo y crear Post`}
-                  </>
+                  </span>
                 )}
-              </button>
+              </motion.button>
             </div>
           )}
 
@@ -744,8 +821,9 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
           <AnimatePresence>
             {aiResult && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="neu-card mt-6 flex flex-col md:flex-row gap-6"
                 style={{ padding: '32px' }}
               >

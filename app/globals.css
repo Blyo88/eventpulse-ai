@@ -8,58 +8,59 @@
 
 :root {
   /* ─────────── LIGHT MODE ─────────── */
-  /* Surface */
   --surface:        #e0e5ec;
   --surface-deep:   #d1d9e6;
   --surface-raised: #e8edf4;
+  --glass-bg:       rgba(224, 229, 236, 0.7);
+  --glass-border:   rgba(255, 255, 255, 0.5);
 
-  /* Shadows */
-  --shadow-light: rgba(255, 255, 255, 0.80);
-  --shadow-dark:  rgba(163, 177, 198, 0.60);
+  --shadow-light: rgba(255, 255, 255, 0.85);
+  --shadow-dark:  rgba(163, 177, 198, 0.65);
 
-  --shadow-soft-raised: -6px  -6px 14px var(--shadow-light),  6px  6px 14px var(--shadow-dark);
-  --shadow-soft-flat:   -2px  -2px  5px var(--shadow-light),  2px  2px  5px var(--shadow-dark);
-  --shadow-soft-inset:  inset -4px  -4px 10px var(--shadow-light), inset 4px  4px 10px var(--shadow-dark);
-  --shadow-md-raised:   -8px  -8px 18px var(--shadow-light),  8px  8px 18px var(--shadow-dark);
-  --shadow-md-inset:    inset -6px  -6px 14px var(--shadow-light), inset 6px  6px 14px var(--shadow-dark);
+  --shadow-soft-raised: -6px -6px 14px var(--shadow-light), 6px 6px 14px var(--shadow-dark), inset 1px 1px 2px rgba(255,255,255,0.6);
+  --shadow-soft-flat:   -2px -2px 5px var(--shadow-light), 2px 2px 5px var(--shadow-dark);
+  --shadow-soft-inset:  inset -4px -4px 10px var(--shadow-light), inset 4px 4px 10px var(--shadow-dark);
+  --shadow-md-raised:   -8px -8px 20px var(--shadow-light), 8px 8px 20px var(--shadow-dark), inset 1px 1px 3px rgba(255,255,255,0.7);
+  --shadow-md-inset:    inset -6px -6px 14px var(--shadow-light), inset 6px 6px 14px var(--shadow-dark);
 
-  /* Accent — Lavender */
   --accent:       #9b72cf;
   --accent-light: rgba(155, 114, 207, 0.20);
-  --accent-glow:  0 0 12px rgba(155, 114, 207, 0.30);
+  --accent-glow:  0 0 20px rgba(155, 114, 207, 0.45);
 
-  /* Text */
   --text-primary:   #4a5568;
   --text-secondary: #718096;
   --text-muted:     #a0aec0;
+
+  /* Noise overlay (applied via ::before on body) */
+  --noise-opacity: 0.025;
 }
 
-/* ─────────── DARK MODE ─────────── */
+/* ─────────── DARK MODE — Glass-Neumorphism Midnight ─────────── */
 [data-theme="dark"] {
-  /* Surface = Midnight */
-  --surface:        #1e2228;
-  --surface-deep:   #16191d;
-  --surface-raised: #272c33;
+  --surface:        #16191d;
+  --surface-deep:   #0f1115;
+  --surface-raised: #1e2228;
+  --glass-bg:       rgba(30, 34, 40, 0.75);
+  --glass-border:   rgba(255, 255, 255, 0.06);
 
-  /* Invertidos: luz viene de arriba, sombra abajo es más oscura */
   --shadow-light: rgba(255, 255, 255, 0.04);
-  --shadow-dark:  rgba(0, 0, 0, 0.30);
+  --shadow-dark:  rgba(0, 0, 0, 0.60);
 
-  --shadow-soft-raised: -6px  -6px 14px var(--shadow-light),  6px  6px 14px var(--shadow-dark);
-  --shadow-soft-flat:   -2px  -2px  5px var(--shadow-light),  2px  2px  5px var(--shadow-dark);
-  --shadow-soft-inset:  inset -4px  -4px 10px var(--shadow-light), inset 4px  4px 10px var(--shadow-dark);
-  --shadow-md-raised:   -8px  -8px 18px var(--shadow-light),  8px  8px 18px var(--shadow-dark);
-  --shadow-md-inset:    inset -6px  -6px 14px var(--shadow-light), inset 6px  6px 14px var(--shadow-dark);
+  --shadow-soft-raised: 4px 4px 10px rgba(0,0,0,0.5), -4px -4px 10px rgba(255,255,255,0.04), inset 1px 1px 2px rgba(255,255,255,0.1);
+  --shadow-soft-flat:   2px 2px 5px rgba(0,0,0,0.4), -2px -2px 5px rgba(255,255,255,0.03);
+  --shadow-soft-inset:  inset 4px 4px 10px rgba(0,0,0,0.55), inset -4px -4px 10px rgba(255,255,255,0.02);
+  --shadow-md-raised:   8px 8px 24px rgba(0,0,0,0.7), -8px -8px 24px rgba(255,255,255,0.04), inset 1px 1px 3px rgba(255,255,255,0.12);
+  --shadow-md-inset:    inset 6px 6px 16px rgba(0,0,0,0.65), inset -6px -6px 16px rgba(255,255,255,0.025);
 
-  /* Accent — Lavender más brillante en dark */
-  --accent:       #a88be0;
-  --accent-light: rgba(168, 139, 224, 0.15);
-  --accent-glow:  0 0 15px rgba(168, 139, 224, 0.35);
+  --accent:       #b191ff;
+  --accent-light: rgba(177, 145, 255, 0.15);
+  --accent-glow:  0 0 24px rgba(177, 145, 255, 0.50);
 
-  /* Text — más claro */
-  --text-primary:   #e2e8f0;
+  --text-primary:   #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted:     #64748b;
+
+  --noise-opacity: 0.04;
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -79,35 +80,60 @@ body {
   color: var(--text-secondary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
+}
+
+/* Noise texture overlay — premium AI tactile finish */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--noise-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px 180px;
+}
+
+/* Ensure all content sits above the noise layer */
+body > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* ────────────────────────────────────────────────────────────────
    COMPONENT CLASSES — Neumorphism (SKILL patterns)
    ──────────────────────────────────────────────────────────────── */
 
-/* Card — Raised surface */
+/* Card — Glass-Neumorphic raised surface */
 .neu-card {
-  background: var(--surface);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-soft-raised);
   padding: 24px;
-  border: none;
-  transition: box-shadow var(--t-smooth), transform var(--t-smooth);
+  transition: box-shadow 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1), border-color 0.3s ease;
 }
 
 /* Card hover lift */
 .neu-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md-raised);
+  border-color: rgba(255,255,255,0.12);
 }
 
-/* Button — neutral neumórfico */
+/* Button — Glass-Neumórfico */
 .neu-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--surface);
-  border: none;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-pill);
   box-shadow: var(--shadow-soft-raised);
   color: var(--text-secondary);
@@ -115,44 +141,58 @@ body {
   font-weight: 600;
   font-size: 0.875rem;
   letter-spacing: 0.03em;
+  min-height: 44px;
   padding: 10px 22px;
-  transition: box-shadow var(--t-press), transform var(--t-press), color var(--t-smooth);
+  transition: box-shadow 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  will-change: transform;
 }
 
 .neu-btn:hover {
   color: var(--text-primary);
+  border-color: rgba(255,255,255,0.14);
 }
 
 .neu-btn:active {
   box-shadow: var(--shadow-soft-inset);
-  transform: scale(0.97);
   color: var(--accent);
 }
 
-/* Button PRIMARY — acento lavanda, flat contrast */
+/* Button PRIMARY */
 .neu-btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--accent);
-  border: none;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #fff 20%));
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.2);
   border-radius: var(--r-pill);
   box-shadow: var(--shadow-soft-flat), var(--accent-glow);
   color: #ffffff;
   cursor: pointer;
   font-weight: 700;
   font-size: 0.875rem;
+  min-height: 44px;
   padding: 10px 22px;
-  transition: box-shadow var(--t-press), transform var(--t-press);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  will-change: transform;
 }
 
 .neu-btn-primary:hover {
   box-shadow: var(--shadow-md-raised), var(--accent-glow);
+  border-color: rgba(255,255,255,0.35);
 }
 
 .neu-btn-primary:active {
-  transform: scale(0.97);
   box-shadow: var(--shadow-soft-inset);
+}
+
+/* Glass modal backdrop — for modals/dialogs */
+.glass-modal-bg {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md-raised);
 }
 
 /* Input — inset (pressed into surface) */
@@ -257,4 +297,103 @@ body {
 
 [data-theme] {
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   AI SCAN ANIMATION — Neural network analyzing feedback
+   ──────────────────────────────────────────────────────────────── */
+
+@keyframes aiScan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(200%);
+  }
+}
+
+@keyframes aiGradientPulse {
+  0%, 100% {
+    opacity: 0.4;
+    background-position: 0% 50%;
+  }
+  50% {
+    opacity: 1;
+    background-position: 100% 50%;
+  }
+}
+
+.ai-scan-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.ai-scan-overlay::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(177, 145, 255, 0.15) 30%,
+    rgba(177, 145, 255, 0.35) 50%,
+    rgba(177, 145, 255, 0.15) 70%,
+    transparent 100%
+  );
+  animation: aiScan 2s ease-in-out infinite;
+}
+
+.ai-gradient-pulse {
+  background: linear-gradient(
+    90deg,
+    var(--surface-deep),
+    color-mix(in srgb, var(--accent) 30%, var(--surface)),
+    var(--surface-deep)
+  );
+  background-size: 200% 100%;
+  animation: aiGradientPulse 2.5s ease-in-out infinite;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SPOTLIGHT BORDER GLOW (applied via mouse-tracking JS)
+   ──────────────────────────────────────────────────────────────── */
+
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(177, 145, 255, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  left: var(--mouse-x, -200px);
+  top: var(--mouse-y, -200px);
+  transition: opacity 0.3s ease;
+  opacity: 0;
+  z-index: 1;
+}
+
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SPRING PHYSICS DEFAULTS (Framer Motion companion)
+   ──────────────────────────────────────────────────────────────── */
+
+.spring-interactive {
+  will-change: transform;
+  transform: translateZ(0);
 }
