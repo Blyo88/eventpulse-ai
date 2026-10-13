@@ -13,6 +13,17 @@ interface SidebarProps {
 
 const navItems = [
   {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+  },
+  {
     href: '/dashboard/events',
     label: 'Eventos',
     icon: (
@@ -62,6 +73,7 @@ const navItems = [
 export default function DashboardSidebar({ userEmail }: SidebarProps) {
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
@@ -80,22 +92,33 @@ export default function DashboardSidebar({ userEmail }: SidebarProps) {
   }
 
   return (
-    <aside
-      className="w-64 shrink-0 p-5 flex flex-col gap-4"
+    <motion.aside
+      animate={{ width: isCollapsed ? "80px" : "260px" }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="shrink-0 p-5 flex flex-col gap-4 relative"
       style={{ background: 'var(--surface)' }}
     >
+      <button 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3 top-8 neu-btn p-1 rounded-full z-10"
+      >
+        {isCollapsed ? '→' : '←'}
+      </button>
+
       {/* Logo */}
       <Link href="/dashboard" className="neu-card flex items-center gap-3 mb-2" style={{ padding: '16px 20px', textDecoration: 'none' }}>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
              stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
-        <div>
-          <p style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: 1.2 }}>
-            EventPulse
-          </p>
-          <p style={{ fontSize: '0.65rem', color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>AI</p>
-        </div>
+        {!isCollapsed && (
+          <div>
+            <p style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: 1.2 }}>
+              EventPulse
+            </p>
+            <p style={{ fontSize: '0.65rem', color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>AI</p>
+          </div>
+        )}
       </Link>
 
       {/* Navegación */}
@@ -103,7 +126,7 @@ export default function DashboardSidebar({ userEmail }: SidebarProps) {
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href)
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} title={isCollapsed ? item.label : undefined}>
               <motion.div
                 whileHover={{ x: 2 }}
                 whileTap={{ scale: 0.97 }}
@@ -120,7 +143,7 @@ export default function DashboardSidebar({ userEmail }: SidebarProps) {
                 }}
               >
                 <span style={{ opacity: isActive ? 1 : 0.6 }}>{item.icon}</span>
-                {item.label}
+                {!isCollapsed && <motion.span initial={{opacity:0}} animate={{opacity:1}}>{item.label}</motion.span>}
               </motion.div>
             </Link>
           )
@@ -151,26 +174,24 @@ export default function DashboardSidebar({ userEmail }: SidebarProps) {
       )}
 
       {/* User & Logout */}
-      <div className="neu-card" style={{ padding: '14px 16px' }}>
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Sesión activa
-        </p>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', wordBreak: 'break-all', marginBottom: 12 }}>
-          {userEmail}
-        </p>
-        <button
-          onClick={handleLogout}
-          disabled={isPending}
-          className="neu-btn w-full justify-center"
-          style={{ fontSize: '0.8rem', padding: '8px 16px', opacity: isPending ? 0.6 : 1 }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
-          </svg>
-          {isPending ? 'Cerrando…' : 'Cerrar sesión'}
-        </button>
-      </div>
-    </aside>
+      {!isCollapsed && (
+        <div className="neu-card" style={{ padding: '14px 16px' }}>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+            Sesión activa
+          </p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', wordBreak: 'break-all', marginBottom: 12 }}>
+            {userEmail}
+          </p>
+          <button
+            onClick={handleLogout}
+            disabled={isPending}
+            className="neu-btn w-full justify-center"
+            style={{ fontSize: '0.8rem', padding: '8px 16px', opacity: isPending ? 0.6 : 1 }}
+          >
+            {isPending ? 'Cerrando…' : 'Cerrar sesión'}
+          </button>
+        </div>
+      )}
+    </motion.aside>
   )
 }
