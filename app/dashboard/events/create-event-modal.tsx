@@ -25,6 +25,9 @@ export default function CreateEventModal() {
       date: new Date(data.get('date') as string).toISOString(),
       location: (data.get('location') as string) || undefined,
       capacity: Number(data.get('capacity')) || 0,
+      is_virtual: data.get('is_virtual') === 'true',
+      enable_check_in: data.get('enable_check_in') === 'true',
+      enable_location_heat_map: data.get('enable_location_heat_map') === 'true',
     }
 
     startTransition(async () => {
@@ -140,9 +143,20 @@ export default function CreateEventModal() {
                     </Field>
                   </div>
 
-                  <Field label="Ubicación">
-                    <input name="location" placeholder="Ej. Bogotá, Colombia" className="neu-input" />
-                  </Field>
+                  <div className="grid grid-cols-1 gap-2 mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" name="is_virtual" value="true" className="accent-[var(--accent)]" />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Es un evento Virtual</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" name="enable_check_in" value="true" className="accent-[var(--accent)]" />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Habilitar Check-in</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" name="enable_location_heat_map" value="true" className="accent-[var(--accent)]" />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Habilitar Mapa de Calor (Opcional)</span>
+                    </label>
+                  </div>
 
                   <div className="flex gap-3 mt-2">
                     <button type="button" onClick={() => setOpen(false)} className="neu-btn flex-1 justify-center">

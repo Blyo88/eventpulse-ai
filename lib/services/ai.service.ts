@@ -127,9 +127,28 @@ class AiService {
       throw new Error('No se pudo procesar ninguna de las fotos proporcionadas.')
     }
 
-    // Ejecuta el modelo
-    const result = await model.generateContent(parts)
-    const responseText = result.response.text()
+    // Ejecuta el modelo con reintento automático (exponential backoff)
+    let retries = 0;
+    const MAX_RETRIES = 3;
+    let responseText = '';
+
+    while (retries < MAX_RETRIES) {
+      try {
+        const result = await model.generateContent(parts)
+        responseText = result.response.text()
+        break; // Éxito!
+      } catch (err: any) {
+        if ((err.message.includes('503') || err.message.includes('Service Unavailable')) && retries < MAX_RETRIES - 1) {
+          retries++;
+          const delay = Math.pow(2, retries) * 1000;
+          console.warn(`Error 503 en IA, reintentando en ${delay}ms (Intento ${retries}/${MAX_RETRIES})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        console.error('Error final de Gemini:', err);
+        throw new Error('Fallo crítico al llamar a la API de IA: ' + err.message);
+      }
+    }
 
     try {
       const parsedData = JSON.parse(responseText) as AiAnalysisResult

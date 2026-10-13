@@ -77,7 +77,7 @@ export default async function DashboardIndex() {
           <p style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '2.5rem', color: 'var(--text-primary)', lineHeight: 1 }}>
             {totalAttendees}
           </p>
-        </div>
+        </SpotlightCard>
 
         {/* Incidentes Abiertos */}
         <SpotlightCard className="neu-card flex flex-col gap-3">

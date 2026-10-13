@@ -93,6 +93,9 @@ export type Database = {
           location: string | null
           capacity: number
           status: EventStatus
+          is_virtual: boolean
+          enable_check_in: boolean
+          enable_location_heat_map: boolean
           created_at: string
           updated_at: string
         }
@@ -105,6 +108,9 @@ export type Database = {
           location?: string | null
           capacity?: number
           status?: EventStatus
+          is_virtual?: boolean
+          enable_check_in?: boolean
+          enable_location_heat_map?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -117,6 +123,9 @@ export type Database = {
           location?: string | null
           capacity?: number
           status?: EventStatus
+          is_virtual?: boolean
+          enable_check_in?: boolean
+          enable_location_heat_map?: boolean
           created_at?: string
           updated_at?: string
         }
