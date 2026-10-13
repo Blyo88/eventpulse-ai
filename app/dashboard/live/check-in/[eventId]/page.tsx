@@ -1,5 +1,5 @@
 import { eventService } from '@/lib/services/event.service'
-import ScannerClient from './scanner-client'
+import ScannerClient from '../scanner-client'
 
 export default async function LiveCheckInPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params
