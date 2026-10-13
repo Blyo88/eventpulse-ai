@@ -3,6 +3,7 @@ import { incidentService } from '@/lib/services/incident.service'
 import { attendeeService } from '@/lib/services/attendee.service'
 import Link from 'next/link'
 import * as motion from 'framer-motion/client'
+import SpotlightCard from '@/app/components/spotlight-card'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,7 +43,7 @@ export default async function DashboardIndex() {
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
         {/* Total Eventos */}
-        <div className="neu-card flex flex-col gap-3">
+        <SpotlightCard className="neu-card flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-soft-inset)' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -57,10 +58,10 @@ export default async function DashboardIndex() {
           <p style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '2.5rem', color: 'var(--text-primary)', lineHeight: 1 }}>
             {events.length}
           </p>
-        </div>
+        </SpotlightCard>
 
         {/* Total Asistentes */}
-        <div className="neu-card flex flex-col gap-3">
+        <SpotlightCard className="neu-card flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-soft-inset)' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -79,7 +80,7 @@ export default async function DashboardIndex() {
         </div>
 
         {/* Incidentes Abiertos */}
-        <div className="neu-card flex flex-col gap-3">
+        <SpotlightCard className="neu-card flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-soft-inset)' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={openIncidents > 0 ? '#ef4444' : '#10b981'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -94,7 +95,7 @@ export default async function DashboardIndex() {
           <p style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '2.5rem', color: openIncidents > 0 ? '#ef4444' : '#10b981', lineHeight: 1 }}>
             {openIncidents}
           </p>
-        </div>
+        </SpotlightCard>
       </motion.div>
 
       {/* Botón de acceso rápido */}

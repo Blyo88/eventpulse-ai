@@ -1,6 +1,7 @@
 import { eventService } from '@/lib/services/event.service'
 import type { Tables } from '@/types/supabase'
 import CreateEventModal from './create-event-modal'
+import SpotlightCard from '@/app/components/spotlight-card'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -28,8 +29,8 @@ function EventCard({ event }: { event: Tables<'events'> }) {
   })
 
   return (
-    <Link href={`/dashboard/events/${event.id}`} className="block">
-      <article className="neu-card h-full flex flex-col gap-3 cursor-pointer">
+    <Link href={`/dashboard/events/${event.id}`} className="block h-full">
+      <SpotlightCard className="neu-card h-full flex flex-col gap-3 cursor-pointer">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <h3 style={{
@@ -99,7 +100,7 @@ function EventCard({ event }: { event: Tables<'events'> }) {
             <path d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
         </div>
-      </article>
+      </SpotlightCard>
     </Link>
   )
 }

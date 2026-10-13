@@ -2,6 +2,7 @@ import { incidentService } from '@/lib/services/incident.service'
 import { eventService } from '@/lib/services/event.service'
 import ReportIncidentModal from './report-modal'
 import ResolveIncidentModal from './resolve-modal'
+import SpotlightCard from '@/app/components/spotlight-card'
 import type { Tables } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -32,7 +33,7 @@ function IncidentCard({ incident }: { incident: Tables<'incidents'> }) {
   })
 
   return (
-    <article 
+    <SpotlightCard 
       className="neu-card flex flex-col gap-3 transition-opacity duration-300"
       style={{ opacity: incident.resolved ? 0.75 : 1 }}
     >
@@ -108,7 +109,7 @@ function IncidentCard({ incident }: { incident: Tables<'incidents'> }) {
         </svg>
         {fecha} · {hora}
       </div>
-    </article>
+    </SpotlightCard>
   )
 }
 
