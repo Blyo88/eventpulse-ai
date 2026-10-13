@@ -1,14 +1,26 @@
 import { organizationService } from '@/lib/services/organization.service'
+import { createClient } from '@/lib/supabase/server'
 import WorkspaceContent from './WorkspaceContent'
 
-// Provisional DEMO ID
 const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export default async function WorkspaceSettingsPage() {
-  const org = await organizationService.getOrganization(DEMO_ORG_ID)
-  const members = await organizationService.getMembers(DEMO_ORG_ID)
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (!org) return <div>Organización no encontrada.</div>
+  const [org, members] = await Promise.all([
+    organizationService.getOrganization(DEMO_ORG_ID),
+    organizationService.getMembers(DEMO_ORG_ID),
+  ])
 
-  return <WorkspaceContent org={org} members={members} orgId={DEMO_ORG_ID} />
+  if (!org) return <div className="p-8 text-slate-300">Organización no encontrada.</div>
+
+  return (
+    <WorkspaceContent 
+      org={org} 
+      members={members} 
+      orgId={DEMO_ORG_ID} 
+      userEmail={user?.email || ''} 
+    />
+  )
 }

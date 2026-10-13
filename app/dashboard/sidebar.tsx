@@ -128,22 +128,25 @@ export default function DashboardSidebar({ userEmail }: SidebarProps) {
           return (
             <Link key={item.href} href={item.href} title={isCollapsed ? item.label : undefined}>
               <motion.div
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-3 px-4 py-3 rounded-full cursor-pointer transition-colors"
+                whileHover={{ x: 4, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer transition-all duration-200"
                 style={{
-                  background: 'var(--surface)',
+                  background: isActive ? 'var(--surface)' : 'transparent',
                   boxShadow: isActive
                     ? 'var(--shadow-soft-inset)'
-                    : 'var(--shadow-soft-raised)',
+                    : 'none',
                   color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
                   fontWeight: isActive ? 700 : 500,
                   fontSize: '0.875rem',
                   fontFamily: 'var(--font-nunito)',
                 }}
               >
-                <span style={{ opacity: isActive ? 1 : 0.6 }}>{item.icon}</span>
-                {!isCollapsed && <motion.span initial={{opacity:0}} animate={{opacity:1}}>{item.label}</motion.span>}
+                <span className="flex items-center justify-center shrink-0 w-6 h-6" style={{ opacity: isActive ? 1 : 0.7, color: isActive ? 'var(--accent)' : 'inherit' }}>
+                  {item.icon}
+                </span>
+                {!isCollapsed && <motion.span initial={{opacity:0}} animate={{opacity:1}} className="truncate">{item.label}</motion.span>}
               </motion.div>
             </Link>
           )
