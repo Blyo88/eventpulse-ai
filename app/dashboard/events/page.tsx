@@ -126,8 +126,11 @@ function EmptyState() {
   )
 }
 
+// Provisional DEMO ID
+const DEMO_ORG_ID = 'demo-org-id'
+
 export default async function EventsPage() {
-  const events = await eventService.getEvents()
+  const events = await eventService.getEvents(DEMO_ORG_ID)
 
   return (
     <div className="flex flex-col gap-6">

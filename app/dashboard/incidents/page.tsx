@@ -193,9 +193,11 @@ function EventSection({
   )
 }
 
+const DEMO_ORG_ID = 'demo-org-id'
+
 export default async function IncidentsPage() {
-  // Traer todos los eventos del usuario
-  const events = await eventService.getEvents()
+  // Traer todos los eventos de la organización
+  const events = await eventService.getEvents(DEMO_ORG_ID)
   const eventIds = events.map((e) => e.id)
 
   // Traer todos los incidentes de todos los eventos del usuario

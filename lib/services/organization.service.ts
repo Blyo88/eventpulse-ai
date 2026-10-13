@@ -16,17 +16,26 @@ export const organizationService = {
     return data
   },
 
+  async getMembers(orgId: string) {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from('organization_members')
+      .select('*, user_id')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw new Error(`Failed to fetch members: ${error.message}`)
+    return data || []
+  },
+
   async inviteMember(orgId: string, email: string, role: 'admin' | 'editor' | 'spectator') {
     const supabase = createAdminClient()
 
-    // 1. Buscar usuario por email en auth.users (la tabla pública no tiene auth emails)
-    const { data: userData, error: userError } = await supabase
-      .from('auth.users') // Nota: Esto usualmente requiere acceso a la tabla auth externa
-      .select('id')
-      .eq('email', email)
-      .single()
+    // 1. Buscar usuario por email usando RPC
+    const { data: userId, error: rpcError } = await (supabase as any)
+      .rpc('get_user_id_by_email', { p_email: email })
 
-    if (userError || !userData) {
+    if (rpcError || !userId) {
       throw new Error('Usuario no encontrado en el sistema.')
     }
 
@@ -35,7 +44,7 @@ export const organizationService = {
       .from('organization_members')
       .insert({
         organization_id: orgId,
-        user_id: userData.id,
+        user_id: userId,
         role: role
       })
 

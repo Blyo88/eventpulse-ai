@@ -2,10 +2,12 @@ import { eventService } from '@/lib/services/event.service'
 import { attendeeService } from '@/lib/services/attendee.service'
 import ScannerClient from '../scanner-client'
 
+const DEMO_ORG_ID = 'demo-org-id'
+
 export default async function LiveCheckInPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params
   const [event, counts] = await Promise.all([
-    eventService.getEventById(eventId),
+    eventService.getEventById(eventId, DEMO_ORG_ID),
     attendeeService.getAttendeeCounts(eventId)
   ])
 

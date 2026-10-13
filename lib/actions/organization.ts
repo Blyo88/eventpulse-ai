@@ -16,7 +16,7 @@ export async function inviteMemberAction({
   const supabase = createAdminClient()
 
   // 2. Obtener usuario ID vía RPC
-  const { data: userId, error: rpcError } = await supabase
+  const { data: userId, error: rpcError } = await (supabase as any)
     .rpc('get_user_id_by_email', { p_email: email })
 
   if (rpcError || !userId) {

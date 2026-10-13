@@ -5,8 +5,10 @@ import type { Tables } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic'
 
+const DEMO_ORG_ID = 'demo-org-id'
+
 export default async function AiStudioPage() {
-  const events = await eventService.getEvents()
+  const events = await eventService.getEvents(DEMO_ORG_ID)
 
   return (
     <div className="flex flex-col gap-6 max-w-6xl">

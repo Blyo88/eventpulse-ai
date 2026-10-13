@@ -8,8 +8,10 @@ import type { Tables } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic'
 
+const DEMO_ORG_ID = 'demo-org-id'
+
 export default async function DashboardIndex() {
-  const events = await eventService.getEvents()
+  const events = await eventService.getEvents(DEMO_ORG_ID)
   
   const eventIds = events.map(e => e.id)
   

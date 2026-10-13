@@ -66,6 +66,8 @@ function AttendeeRow({ attendee }: { attendee: Tables<'attendees'> }) {
   )
 }
 
+const DEMO_ORG_ID = 'demo-org-id'
+
 export default async function AttendeesPage({
   params,
 }: {
@@ -74,7 +76,7 @@ export default async function AttendeesPage({
   const { id } = await params
 
   const [event, attendees] = await Promise.all([
-    eventService.getEventById(id).catch(() => null),
+    eventService.getEventById(id, DEMO_ORG_ID).catch(() => null),
     attendeeService.getAttendeesByEventId(id),
   ])
 

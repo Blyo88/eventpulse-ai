@@ -44,6 +44,8 @@ function StatBox({
   )
 }
 
+const DEMO_ORG_ID = 'demo-org-id'
+
 export default async function EventDetailPage({
   params,
 }: {
@@ -52,8 +54,8 @@ export default async function EventDetailPage({
   const { id } = await params
 
   const [event, attendees, incidents] = await Promise.all([
-    eventService.getEventById(id).catch(() => null),
-    attendeeService.getAttendeesByEventId(id),
+    eventService.getEventById(id, DEMO_ORG_ID).catch(() => null),
+    attendeeService.getAttendeesByEventId(id), // This needs to be org-aware or event-id is enough. The service actually only needs event_id.
     incidentService.getIncidentsByEventId(id),
   ])
 

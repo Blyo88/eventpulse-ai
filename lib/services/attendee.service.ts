@@ -1,17 +1,14 @@
-import 'server-only'
+'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { eventService } from '@/lib/services/event.service' // Añadimos import
+import { eventService } from '@/lib/services/event.service'
 import type { CheckInAttendeeInput, RegisterAttendeeInput } from '@/lib/validations'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 
 type AttendeeRow = Tables<'attendees'>
+const DEMO_ORG_ID = 'demo-org-id'
 
 export const attendeeService = {
-  /**
-   * Registra un asistente. `input` debe venir ya validado con Zod
-   * (`registerAttendeeSchema`), esta capa no revalida.
-   */
   async countAllAttendees(eventIds: string[]): Promise<number> {
     if (eventIds.length === 0) return 0
     const supabase = createAdminClient()
@@ -42,8 +39,7 @@ export const attendeeService = {
   async registerAttendee(input: RegisterAttendeeInput): Promise<AttendeeRow> {
     const supabase = createAdminClient()
     
-    // 1. Consultar habilitación del check-in
-    const event = await eventService.getEventById(input.event_id)
+    const event = await eventService.getEventById(input.event_id, DEMO_ORG_ID)
     const shouldGenerateToken = event?.enable_check_in
 
     const attendeeData: TablesInsert<'attendees'> = {
@@ -52,7 +48,6 @@ export const attendeeService = {
       email: input.email,
       registered_via: input.registered_via,
       checked_in: false,
-      // 2. Generar token SI habilitado, si no, NULL
       access_token: shouldGenerateToken ? crypto.randomUUID() : null,
     }
 
@@ -68,9 +63,6 @@ export const attendeeService = {
 
     return data
   },
-  
-  // ... (resto)
-
 
   async getAttendeesByEventId(eventId: string): Promise<AttendeeRow[]> {
     const supabase = createAdminClient()
