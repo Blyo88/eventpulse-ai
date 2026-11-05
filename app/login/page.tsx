@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { Suspense, useActionState, useState } from 'react'
+import { LoginNotice } from './login-notice'
 import { loginAction, type LoginState } from '@/lib/actions/auth'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -43,6 +44,9 @@ export default function LoginPage() {
         {/* Card */}
         <div className="neu-card" style={{ padding: '32px' }}>
           <form action={formAction} noValidate>
+            <Suspense fallback={null}>
+              <LoginNotice />
+            </Suspense>
             {/* Error global */}
             {state.error && (
               <motion.div
