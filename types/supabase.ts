@@ -135,6 +135,7 @@ export type Database = {
       events: {
         Row: {
           id: string
+          user_id: string
           organization_id: string
           title: string
           description: string | null
@@ -150,6 +151,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          user_id: string
           organization_id: string
           title: string
           description?: string | null
@@ -165,6 +167,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          user_id?: string
           organization_id?: string
           title?: string
           description?: string | null

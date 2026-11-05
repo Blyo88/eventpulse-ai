@@ -13,11 +13,26 @@ type EventRow = Tables<'events'>
  */
 
 export const eventService = {
-  async createEvent(input: CreateEventInput, organizationId: string): Promise<EventRow> {
+  async createEvent(input: CreateEventInput, organizationId: string, userId: string): Promise<EventRow> {
     const supabase = createAdminClient()
+
+    // Garantiza que la organización exista (la FK de events.organization_id lo exige)
+    // y que el creador sea miembro de ella.
+    const { error: orgError } = await supabase
+      .from('organizations')
+      .upsert({ id: organizationId, name: 'IEEE CIS Demo Cap' }, { onConflict: 'id', ignoreDuplicates: true })
+    if (orgError) throw new Error(`Failed to ensure organization: ${orgError.message}`)
+
+    await supabase
+      .from('organization_members')
+      .upsert(
+        { organization_id: organizationId, user_id: userId, role: 'owner' },
+        { onConflict: 'organization_id,user_id', ignoreDuplicates: true }
+      )
 
     const eventData: TablesInsert<'events'> = {
       organization_id: organizationId,
+      user_id: userId,
       title: input.title,
       description: input.description ?? null,
       date: input.date,
