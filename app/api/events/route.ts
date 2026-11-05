@@ -2,14 +2,33 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createEventSchema } from '@/lib/validations'
 import { eventService } from '@/lib/services/event.service'
 import { ZodError } from 'zod'
+import { createClient } from '@/lib/supabase/server'
+
+// Organización compartida que usan todas las páginas del dashboard
+// (ver supabase/migrations/0010_seed_demo_org.sql).
+const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
+
+/**
+ * Resuelve la organización de la petición. Si no llega el header
+ * x-organization-id (caso del dashboard), exige sesión iniciada y usa la
+ * organización demo, que es la misma desde la que se listan los eventos.
+ */
+async function resolveOrganizationId(request: NextRequest): Promise<string | null> {
+  const fromHeader = request.headers.get('x-organization-id')
+  if (fromHeader) return fromHeader
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user ? DEMO_ORG_ID : null
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const organizationId = request.headers.get('x-organization-id')
+    const organizationId = await resolveOrganizationId(request)
 
     if (!organizationId) {
-        return NextResponse.json({ success: false, error: 'Organization ID required' }, { status: 400 })
+        return NextResponse.json({ success: false, error: 'Debes iniciar sesión' }, { status: 401 })
     }
 
     // Validate with Zod
@@ -64,10 +83,10 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const organizationId = request.headers.get('x-organization-id')
+    const organizationId = await resolveOrganizationId(request)
 
     if (!organizationId) {
-        return NextResponse.json({ success: false, error: 'Organization ID required' }, { status: 400 })
+        return NextResponse.json({ success: false, error: 'Debes iniciar sesión' }, { status: 401 })
     }
 
     const events = await eventService.getEvents(organizationId)
