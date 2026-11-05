@@ -7,6 +7,10 @@
   # NEXT_PUBLIC_* vars are intentionally inlined in the client bundle by Next.js.
   # The Supabase anon key is public by design and protected by Row Level Security.
   SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_URL"
+  # Turbopack's persistent build cache (.next/cache) records env values used at
+  # build time. It is internal build state and is never served to visitors, so
+  # exclude it from scanning instead of the real (server-only) secrets.
+  SECRETS_SCAN_OMIT_PATHS = ".next/cache/**,.netlify/.next/cache/**"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
