@@ -1,4 +1,4 @@
-import { eventService } from '@/lib/services/event.service'
+import { eventService, GENERAL_STUDIO_EVENT_ID } from '@/lib/services/event.service'
 import { photoService } from '@/lib/services/photo.service'
 import AiStudioClient from './ai-studio-client'
 import type { Tables } from '@/types/supabase'
@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic'
 const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export default async function AiStudioPage() {
-  const events = await eventService.getEvents(DEMO_ORG_ID)
+  const allEvents = await eventService.getEvents(DEMO_ORG_ID)
+  const events = allEvents.filter(e => e.id !== GENERAL_STUDIO_EVENT_ID)
 
   return (
     <div className="flex flex-col gap-6 max-w-6xl">

@@ -12,7 +12,46 @@ type EventRow = Tables<'events'>
  * Sustituye a `auth.getUser()` hasta que exista la fase de autenticación.
  */
 
+export const GENERAL_STUDIO_EVENT_ID = '00000000-0000-0000-0000-000000000001'
+
 export const eventService = {
+  async ensureGeneralStudioEvent(organizationId: string = '00000000-0000-0000-0000-000000000000'): Promise<EventRow> {
+    const supabase = createAdminClient()
+
+    const { data: existing } = await supabase
+      .from('events')
+      .select('*')
+      .eq('id', GENERAL_STUDIO_EVENT_ID)
+      .maybeSingle()
+
+    if (existing) return existing
+
+    const { data, error } = await supabase
+      .from('events')
+      .insert({
+        id: GENERAL_STUDIO_EVENT_ID,
+        organization_id: organizationId,
+        title: 'Estudio Libre General',
+        description: 'Espacio de creación y análisis independiente con IA',
+        date: new Date().toISOString(),
+        status: 'active',
+        capacity: 0,
+        is_virtual: true,
+        enable_check_in: false,
+        enable_location_heat_map: false,
+      })
+      .select('*')
+      .single()
+
+    if (error) {
+      const { data: retry } = await supabase.from('events').select('*').eq('id', GENERAL_STUDIO_EVENT_ID).maybeSingle()
+      if (retry) return retry
+      throw new Error(`Failed to ensure general studio event: ${error.message}`)
+    }
+
+    return data
+  },
+
   async createEvent(input: CreateEventInput, organizationId: string): Promise<EventRow> {
     const supabase = createAdminClient()
 

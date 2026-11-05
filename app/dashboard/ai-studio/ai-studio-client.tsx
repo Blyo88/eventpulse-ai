@@ -28,7 +28,6 @@ interface AiResult {
   generated_copy: string;
 }
 
-/* ── Animated Counter Hook ── */
 function AnimatedCounter({ value, duration = 1.2 }: { value: number; duration?: number }) {
   const motionVal = useMotionValue(0)
   const springVal = useSpring(motionVal, { stiffness: 60, damping: 20 })
@@ -47,7 +46,6 @@ function AnimatedCounter({ value, duration = 1.2 }: { value: number; duration?: 
   return <>{display}</>
 }
 
-/* ── Spotlight Card Wrapper ── */
 function SpotlightCard({ children, className, style, onClick }: { 
   children: React.ReactNode; className?: string; style?: React.CSSProperties; onClick?: () => void 
 }) {
@@ -74,9 +72,8 @@ function SpotlightCard({ children, className, style, onClick }: {
 }
 
 export default function AiStudioClient({ events }: { events: Tables<'events'>[] }) {
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null) // null = grid, 'general' = estudio libre, o uuid de evento
   
-  // Datos del evento seleccionado
   const [photos, setPhotos] = useState<Tables<'photos'>[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
@@ -84,26 +81,33 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   const [uploading, setUploading] = useState<UploadingFile[]>([])
   const [loadingPhotos, setLoadingPhotos] = useState(false)
   
-  // Estado de Gemini AI
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [aiResult, setAiResult] = useState<AiResult | null>(null)
   
-  // Estado para el modal de añadir evento
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   
-  // Estados para el Grid de Eventos
   const [eventsData, setEventsData] = useState<Record<string, { photoCount: number, hasAi: boolean }>>({})
+  const [generalStats, setGeneralStats] = useState<{ photoCount: number; hasAi: boolean }>({ photoCount: 0, hasAi: false })
   const [loadingGridDb, setLoadingGridDb] = useState(true)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  // 1. Cargar las estadísticas globales para el Grid de Eventos al inicio
+  // 1. Cargar estadísticas globales para el Grid de Eventos y Estudio Libre
   useEffect(() => {
     async function loadGridStats() {
       setLoadingGridDb(true)
       try {
         const stats: Record<string, { photoCount: number, hasAi: boolean }> = {}
+        const [generalPhotosRes, generalAiRes] = await Promise.all([
+          fetch(`/api/photos?event_id=general`).then(res => res.json()).catch(() => ({ data: [] })),
+          fetch(`/api/ai/analyze?event_id=general`).then(res => res.json()).catch(() => ({ data: null }))
+        ])
+        setGeneralStats({
+          photoCount: generalPhotosRes.data?.length || 0,
+          hasAi: !!generalAiRes.data
+        })
+
         for (const event of events) {
           const [photosRes, aiRes] = await Promise.all([
             fetch(`/api/photos?event_id=${event.id}`).then(res => res.json()),
@@ -124,16 +128,18 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     loadGridStats()
   }, [events])
 
-  // 2. Cargar fotos y análisis de UN evento cuando se selecciona (Vista Estudio)
+  // 2. Cargar fotos y análisis cuando se selecciona un evento o estudio libre ('general')
   useEffect(() => {
     if (selectedEventId) {
       setLoadingPhotos(true)
       setSelectedIds(new Set()) 
       setAiResult(null) 
       
+      const queryId = selectedEventId === 'general' ? 'general' : selectedEventId
+      
       Promise.all([
-        fetch(`/api/photos?event_id=${selectedEventId}`).then(res => res.json()),
-        fetch(`/api/ai/analyze?event_id=${selectedEventId}`).then(res => res.json())
+        fetch(`/api/photos?event_id=${queryId}`).then(res => res.json()),
+        fetch(`/api/ai/analyze?event_id=${queryId}`).then(res => res.json())
       ]).then(([photosRes, aiRes]) => {
         setPhotos(photosRes.data || [])
         if (aiRes.data) {
@@ -156,9 +162,9 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   }
 
   const uploadFile = async (file: File): Promise<Tables<'photos'> | null> => {
-    if (!selectedEventId) throw new Error('Evento no seleccionado')
+    if (!selectedEventId) throw new Error('Contexto no seleccionado')
     const formData = new FormData()
-    formData.append('event_id', selectedEventId)
+    formData.append('event_id', selectedEventId) // puede ser 'general' o uuid
     formData.append('file', file)
 
     const res = await fetch('/api/photos', { method: 'POST', body: formData })
@@ -170,14 +176,13 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
       if (!selectedEventId) {
-        alert('Selecciona un evento primero')
+        alert('Selecciona un espacio de estudio primero')
         return
       }
 
       const fileArr = Array.from(files)
       if (fileArr.length === 0) return
 
-      // Crear entries de progreso
       const entries: UploadingFile[] = fileArr.map((f) => ({
         id: `${f.name}-${Date.now()}-${Math.random()}`,
         name: f.name,
@@ -186,7 +191,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
       }))
       setUploading((prev) => [...prev, ...entries])
 
-      // Subir en paralelo
       await Promise.all(
         fileArr.map(async (file, idx) => {
           const entry = entries[idx]
@@ -205,6 +209,17 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
             const photo = await uploadFile(file)
             if (photo) {
               setPhotos((prev) => [photo, ...prev])
+              if (selectedEventId === 'general') {
+                setGeneralStats((prev) => ({ ...prev, photoCount: prev.photoCount + 1 }))
+              } else if (selectedEventId) {
+                setEventsData((prev) => ({
+                  ...prev,
+                  [selectedEventId]: {
+                    ...prev[selectedEventId],
+                    photoCount: (prev[selectedEventId]?.photoCount || 0) + 1
+                  }
+                }))
+              }
             }
             setUploading((prev) =>
               prev.map((u) =>
@@ -222,7 +237,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
         })
       )
 
-      // Limpiar done después de 2s
       setTimeout(() => {
         setUploading((prev) => prev.filter((u) => u.progress !== 'done'))
       }, 2000)
@@ -272,8 +286,18 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
       })
       if (!res.ok) throw new Error('Error al eliminar')
       
-      // Actualizar UI
       setPhotos((prev) => prev.filter((p) => !selectedIds.has(p.id)))
+      if (selectedEventId === 'general') {
+        setGeneralStats((prev) => ({ ...prev, photoCount: Math.max(0, prev.photoCount - selectedIds.size) }))
+      } else if (selectedEventId) {
+        setEventsData((prev) => ({
+          ...prev,
+          [selectedEventId]: {
+            ...prev[selectedEventId],
+            photoCount: Math.max(0, (prev[selectedEventId]?.photoCount || 0) - selectedIds.size)
+          }
+        }))
+      }
       setSelectedIds(new Set())
     } catch (err) {
       alert('Hubo un error al eliminar las fotos.')
@@ -284,7 +308,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   }
 
   const handleAnalyze = async () => {
-    // Si hay seleccionadas, analizamos esas. Si no, todas.
     const targetPhotos = selectedIds.size > 0 
       ? photos.filter(p => selectedIds.has(p.id)) 
       : photos
@@ -296,13 +319,14 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
 
     try {
       const urls = targetPhotos.map(p => p.storage_url)
-      const selectedEvent = events.find(e => e.id === selectedEventId)
+      const selectedEvent = selectedEventId !== 'general' ? events.find(e => e.id === selectedEventId) : null
+      
       const res = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           imageUrls: urls,
-          eventName: selectedEvent?.title || '',
+          eventName: selectedEvent?.title || 'Estudio Libre General',
           eventDescription: selectedEvent?.description || '',
           eventId: selectedEventId
         }),
@@ -313,12 +337,13 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
       
       setAiResult(json.data as AiResult)
       
-      // Actualizar el estado del grid localmente
-      if (selectedEventId) {
-         setEventsData(prev => ({
-           ...prev,
-           [selectedEventId]: { ...prev[selectedEventId], hasAi: true }
-         }))
+      if (selectedEventId === 'general') {
+        setGeneralStats((prev) => ({ ...prev, hasAi: true }))
+      } else if (selectedEventId) {
+        setEventsData((prev) => ({
+          ...prev,
+          [selectedEventId]: { ...prev[selectedEventId], hasAi: true },
+        }))
       }
       
     } catch (err) {
@@ -328,7 +353,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     }
   }
 
-  const downloadImage = async (url: string, filename = 'imagen-evento.jpg') => {
+  const downloadImage = async (url: string, filename = 'imagen-estudio.jpg') => {
     try {
       const response = await fetch(url)
       const blob = await response.blob()
@@ -346,7 +371,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     }
   }
 
-  // Volver al Grid
   const handleBackToGrid = () => {
     setSelectedEventId(null)
     setPhotos([])
@@ -354,14 +378,14 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     setAiResult(null)
   }
 
-  const selectedEvent = selectedEventId ? events.find(e => e.id === selectedEventId) : null
+  const selectedEvent = selectedEventId && selectedEventId !== 'general' ? events.find(e => e.id === selectedEventId) : null
 
   return (
     <div className="flex flex-col gap-6">
       <AnimatePresence mode="wait">
         {!selectedEventId ? (
           /* ================================================================
-             VISTA 1: GRID DE EVENTOS
+             VISTA 1: GRID PRINCIPAL (Estudio Libre + Eventos)
              ================================================================ */
           <motion.div
             key="grid-view"
@@ -380,19 +404,74 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                   <path d="M12 3a9 9 0 0 1 9 9"/>
                 </svg>
               </div>
-            ) : events.length === 0 ? (
-              <div className="neu-card flex flex-col items-center py-16 gap-4">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
-                     stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/>
-                  <path d="M16 2v4M8 2v4M3 10h18"/>
-                </svg>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  No hay eventos creados. Ve a Eventos para crear uno.
-                </p>
-              </div>
             ) : (
               <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {/* 1. Tarjeta Especial: Estudio Libre / General */}
+                <motion.div
+                  whileHover={{ y: -4, scale: 1.01 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={springConfig}
+                  onClick={() => setSelectedEventId('general')}
+                  className="spring-interactive"
+                >
+                  <SpotlightCard
+                    className="neu-card cursor-pointer flex flex-col gap-4 border border-[var(--accent)]/30"
+                    style={{ padding: '24px', background: 'var(--surface-raised)' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="neu-badge-accent">IA Libre</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+                        Estudio Libre General
+                      </h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 4 }}>
+                        Crea contenido y analiza fotos con IA sin necesidad de vincularlas a un evento formal.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                           stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
+                      </svg>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Fotos en galería: <strong><AnimatedCounter value={generalStats.photoCount} /></strong>
+                      </span>
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between">
+                      {generalStats.hasAi ? (
+                        <span className="neu-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                          Completado ✅
+                        </span>
+                      ) : generalStats.photoCount > 0 ? (
+                        <span className="neu-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                          Pendiente ⏳
+                        </span>
+                      ) : (
+                        <span className="neu-badge" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                          Sin fotos 📷
+                        </span>
+                      )}
+                      <div className="flex items-center gap-1" style={{ color: 'var(--accent)', fontSize: '0.8rem', fontWeight: 700 }}>
+                        <span>Abrir</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </SpotlightCard>
+                </motion.div>
+
+                {/* 2. Tarjetas de Eventos Existentes */}
                 {events.map((event) => {
                   const stats = eventsData[event.id]
                   const photoCount = stats?.photoCount ?? 0
@@ -412,7 +491,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                         className="neu-card cursor-pointer flex flex-col gap-4"
                         style={{ padding: '24px' }}
                       >
-                        {/* Nombre + Fecha */}
                         <div>
                           <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
                             {event.title}
@@ -422,7 +500,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                           </p>
                         </div>
 
-                        {/* Fotos en galería con contador animado */}
                         <div className="flex items-center gap-2">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                                stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -435,7 +512,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                           </span>
                         </div>
 
-                        {/* Badge Estado IA */}
                         <div className="mt-auto">
                           {hasAi ? (
                             <span className="neu-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
@@ -456,7 +532,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                   )
                 })}
 
-                {/* Botón (+) Neumórfico para Añadir Evento */}
+                {/* 3. Botón (+) Neumórfico para Añadir Evento */}
                 <motion.button
                   whileHover={{ scale: 1.03, y: -4 }}
                   whileTap={{ scale: 0.96 }}
@@ -475,7 +551,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                     </svg>
                   </div>
                   <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent)' }}>
-                    Añadir evento al Estudio
+                    Vincular evento al Estudio
                   </span>
                 </motion.button>
               </div>
@@ -483,7 +559,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
           </motion.div>
         ) : (
           /* ================================================================
-             VISTA 2: ESTUDIO DE EVENTO (Vista de Detalle)
+             VISTA 2: ESTUDIO ACTIVO (Libre o por Evento)
              ================================================================ */
           <motion.div
             key="studio-view"
@@ -493,7 +569,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
             transition={{ duration: 0.3 }}
             className="flex flex-col gap-6"
           >
-            {/* Botón Volver e Info de Evento */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <motion.button
                 onClick={handleBackToGrid}
@@ -507,23 +582,17 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 12H5M12 19l-7-7 7-7"/>
                 </svg>
-                Volver a todos los eventos
+                Volver a la selección
               </motion.button>
 
-              {selectedEvent && (
-                <motion.div 
-                  layoutId={`event-card-${selectedEvent.id}`}
-                  className="text-right"
-                  transition={springConfig}
-                >
-                  <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-                    {selectedEvent.title}
-                  </h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    {new Date(selectedEvent.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                </motion.div>
-              )}
+              <div className="text-right">
+                <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                  {selectedEventId === 'general' ? 'Estudio Libre / General' : selectedEvent?.title}
+                </h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  {selectedEventId === 'general' ? 'Espacio independiente de análisis con IA' : new Date(selectedEvent?.date || '').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
             </div>
 
             {/* Drop Zone */}
@@ -681,7 +750,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                   <path d="M21 15l-5-5L5 21"/>
                 </svg>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                  Carga fotos del evento arriba
+                  Carga fotos arriba para empezar
                 </p>
               </div>
             ) : (
@@ -705,11 +774,9 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                           boxShadow: isSelected ? 'var(--shadow-soft-inset)' : 'var(--shadow-soft-raised)',
                         }}
                       >
-                        {/* AI Scan overlay while analyzing */}
                         {isAnalyzing && (selectedIds.size === 0 || selectedIds.has(photo.id)) && (
                           <div className="ai-scan-overlay" />
                         )}
-                        {/* CheckCircle cuando está seleccionada */}
                         {isSelected && (
                           <div className="absolute top-4 right-4 z-10 w-6 h-6 rounded-full flex items-center justify-center"
                                style={{ background: 'var(--accent)', color: '#fff', boxShadow: 'var(--shadow-soft-raised)' }}>
@@ -727,7 +794,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={photo.storage_url}
-                            alt="Foto del evento"
+                            alt="Foto"
                             className="w-full h-full object-cover"
                             loading="lazy"
                             style={{ opacity: isSelected ? 0.85 : 1, transition: 'opacity 0.2s' }}
@@ -744,12 +811,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                               Sin score IA
                             </span>
                           )}
-                          {photo.is_selected && (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                 stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
-                              <path d="M20 6L9 17l-5-5"/>
-                            </svg>
-                          )}
                         </div>
                       </motion.div>
                     )
@@ -759,7 +820,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
             )}
           </div>
 
-          {/* Action Bar (Botón IA + Eliminar) */}
           {photos.length > 0 && (
             <div className="flex flex-wrap items-center gap-4 mt-2">
               {selectedIds.size > 0 && (
@@ -810,7 +870,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                     </svg>
                     {selectedIds.size > 0 
                       ? `Analizar las ${selectedIds.size} fotos seleccionadas`
-                      : aiResult ? `Volver a analizar con IA` : `Analizar evento completo y crear Post`}
+                      : aiResult ? `Volver a analizar con IA` : `Analizar y crear post`}
                   </span>
                 )}
               </motion.button>
@@ -827,7 +887,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                 className="neu-card mt-6 flex flex-col md:flex-row gap-6"
                 style={{ padding: '32px' }}
               >
-                {/* Fotos Elegidas */}
                 <div className="w-full md:w-1/2 flex flex-col gap-3">
                   <div className="flex items-center gap-2 mb-1">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -861,10 +920,10 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                             Score: {photo.ai_score}
                           </span>
                           <button
-                            onClick={() => downloadImage(photo.url, `evento-top-${idx + 1}.jpg`)}
+                            onClick={() => downloadImage(photo.url, `top-${idx + 1}.jpg`)}
                             className="neu-btn"
                             style={{ fontSize: '0.7rem', padding: '4px 8px' }}
-                            title="Descargar foto"
+                            title="Descargar"
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -883,7 +942,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                   </div>
                 </div>
 
-                {/* Copy Generado */}
                 <div className="w-full md:w-1/2 flex flex-col gap-3">
                   <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, color: 'var(--text-primary)' }}>
                     Copy sugerido para Redes Sociales
@@ -915,14 +973,13 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
         )}
       </AnimatePresence>
 
-      {/* Modal para añadir evento al Estudio */}
       <AnimatePresence>
         {isAddModalOpen && (
           <AddEventModal
             events={events}
             onConfirm={(eventId) => {
               setSelectedEventId(eventId)
-              setIsAddModalOpen(false) // Cierra el modal al confirmar
+              setIsAddModalOpen(false)
             }}
             onClose={() => setIsAddModalOpen(false)}
           />

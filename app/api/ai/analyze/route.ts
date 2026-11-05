@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { aiService } from '@/lib/services/ai.service'
+import { eventService, GENERAL_STUDIO_EVENT_ID } from '@/lib/services/event.service'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -8,17 +9,21 @@ const analyzeSchema = z.object({
   imageUrls: z.array(z.string().url('Debe ser una URL válida')).min(1, 'Se requiere al menos una foto'),
   eventName: z.string().optional(),
   eventDescription: z.string().optional(),
-  eventId: z.string().uuid('Event ID inválido'),
+  eventId: z.string().optional(),
 })
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const eventId = searchParams.get('event_id')
+    const rawEventId = searchParams.get('event_id')
     
-    if (!eventId) {
+    if (!rawEventId) {
       return NextResponse.json({ error: 'event_id es requerido' }, { status: 400 })
     }
+
+    const eventId = (rawEventId === 'general' || rawEventId === GENERAL_STUDIO_EVENT_ID)
+      ? GENERAL_STUDIO_EVENT_ID
+      : rawEventId
 
     const saved = await aiService.getAnalysisByEventId(eventId)
     if (!saved) {
@@ -59,8 +64,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { imageUrls, eventName, eventDescription, eventId } = parsed.data
+    const { imageUrls, eventName, eventDescription, eventId: rawEventId } = parsed.data
     
+    const eventId = (!rawEventId || rawEventId === 'general' || rawEventId === GENERAL_STUDIO_EVENT_ID)
+      ? GENERAL_STUDIO_EVENT_ID
+      : rawEventId
+
+    if (eventId === GENERAL_STUDIO_EVENT_ID) {
+      await eventService.ensureGeneralStudioEvent()
+    }
+
     // Llamar a Gemini Vision
     const aiResult = await aiService.analyzePhotosAndGenerateCopy(imageUrls, eventName, eventDescription)
     

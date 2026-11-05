@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { eventService, GENERAL_STUDIO_EVENT_ID } from './event.service'
 import type { Tables } from '@/types/supabase'
 
 const BUCKET = 'event_photos'
@@ -13,6 +14,14 @@ class PhotoService {
     eventId: string,
     file: File
   ): Promise<Tables<'photos'>> {
+    const targetEventId = (eventId === 'general' || eventId === GENERAL_STUDIO_EVENT_ID)
+      ? GENERAL_STUDIO_EVENT_ID
+      : eventId
+
+    if (targetEventId === GENERAL_STUDIO_EVENT_ID) {
+      await eventService.ensureGeneralStudioEvent()
+    }
+
     // Validaciones
     if (!ALLOWED_TYPES.includes(file.type)) {
       throw new Error(
@@ -30,7 +39,7 @@ class PhotoService {
     // Generar path único: event_photos/<event_id>/<timestamp>_<filename>
     const timestamp = Date.now()
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const storagePath = `${eventId}/${timestamp}_${safeName}`
+    const storagePath = `${targetEventId}/${timestamp}_${safeName}`
 
     // Subir al bucket
     const { error: uploadError } = await supabase.storage
@@ -55,7 +64,7 @@ class PhotoService {
     const { data, error: insertError } = await supabase
       .from('photos')
       .insert({
-        event_id: eventId,
+        event_id: targetEventId,
         storage_url: storageUrl,
         is_selected: false,
       })
@@ -73,11 +82,15 @@ class PhotoService {
 
   /** Lista fotos de un evento ordenadas por fecha descendente. */
   async getPhotosByEventId(eventId: string): Promise<Tables<'photos'>[]> {
+    const targetEventId = (eventId === 'general' || eventId === GENERAL_STUDIO_EVENT_ID)
+      ? GENERAL_STUDIO_EVENT_ID
+      : eventId
+
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('photos')
       .select('*')
-      .eq('event_id', eventId)
+      .eq('event_id', targetEventId)
       .order('created_at', { ascending: false })
 
     if (error) throw new Error(`Error al obtener fotos: ${error.message}`)

@@ -1,4 +1,4 @@
-import { eventService } from '@/lib/services/event.service'
+import { eventService, GENERAL_STUDIO_EVENT_ID } from '@/lib/services/event.service'
 import type { Tables } from '@/types/supabase'
 import CreateEventModal from './create-event-modal'
 import SpotlightCard from '@/app/components/spotlight-card'
@@ -130,7 +130,8 @@ function EmptyState() {
 const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export default async function EventsPage() {
-  const events = await eventService.getEvents(DEMO_ORG_ID)
+  const allEvents = await eventService.getEvents(DEMO_ORG_ID)
+  const events = allEvents.filter(e => e.id !== GENERAL_STUDIO_EVENT_ID)
 
   return (
     <div className="flex flex-col gap-6">
