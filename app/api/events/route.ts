@@ -3,14 +3,12 @@ import { createEventSchema } from '@/lib/validations'
 import { eventService } from '@/lib/services/event.service'
 import { ZodError } from 'zod'
 
+const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const organizationId = request.headers.get('x-organization-id')
-
-    if (!organizationId) {
-        return NextResponse.json({ success: false, error: 'Organization ID required' }, { status: 400 })
-    }
+    const organizationId = request.headers.get('x-organization-id') || DEMO_ORG_ID
 
     // Validate with Zod
     const validatedData = createEventSchema.parse(body)
@@ -64,11 +62,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const organizationId = request.headers.get('x-organization-id')
-
-    if (!organizationId) {
-        return NextResponse.json({ success: false, error: 'Organization ID required' }, { status: 400 })
-    }
+    const organizationId = request.headers.get('x-organization-id') || DEMO_ORG_ID
 
     const events = await eventService.getEvents(organizationId)
 

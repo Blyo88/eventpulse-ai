@@ -4,6 +4,8 @@ import { useState, useTransition, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 
+const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
+
 export default function CreateEventModal() {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,7 +36,10 @@ export default function CreateEventModal() {
       try {
         const res = await fetch('/api/events', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-organization-id': DEMO_ORG_ID
+          },
           body: JSON.stringify(body),
         })
         const json = await res.json()
@@ -79,7 +84,7 @@ export default function CreateEventModal() {
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
-              transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
               className="fixed inset-0 flex items-center justify-center z-50 p-4"
               role="dialog"
               aria-modal="true"
