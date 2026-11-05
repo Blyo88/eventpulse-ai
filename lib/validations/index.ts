@@ -2,10 +2,10 @@ import { z } from 'zod'
 
 // Event Schemas
 export const createEventSchema = z.object({
-  organization_id: z.string().uuid('Invalid organization ID'),
+  organization_id: z.string().uuid('Invalid organization ID').optional(),
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().max(1000).nullable().optional(),
-  date: z.string().datetime('Invalid date format'),
+  date: z.string().min(1, 'Date is required').transform((val) => new Date(val).toISOString()),
   location: z.string().max(255).nullable().optional(),
   capacity: z.number().int().min(0, 'Capacity must be positive').default(0),
   is_virtual: z.boolean().default(false),

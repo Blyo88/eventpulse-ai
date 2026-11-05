@@ -21,10 +21,23 @@ export default function CreateEventModal() {
     e.preventDefault()
     setError(null)
     const data = new FormData(e.currentTarget)
+    
+    const dateVal = data.get('date') as string
+    let parsedDate = dateVal
+    try {
+      const d = new Date(dateVal)
+      if (!isNaN(d.getTime())) {
+        parsedDate = d.toISOString()
+      }
+    } catch {
+      // fallback
+    }
+
     const body = {
+      organization_id: DEMO_ORG_ID,
       title: data.get('title') as string,
       description: (data.get('description') as string) || undefined,
-      date: new Date(data.get('date') as string).toISOString(),
+      date: parsedDate,
       location: (data.get('location') as string) || undefined,
       capacity: Number(data.get('capacity')) || 0,
       is_virtual: data.get('is_virtual') === 'true',
@@ -44,7 +57,10 @@ export default function CreateEventModal() {
         })
         const json = await res.json()
         if (!res.ok) {
-          setError(json.error ?? 'Error al crear el evento')
+          const detailMsg = Array.isArray(json.details) && json.details.length > 0
+            ? json.details.map((d: { message: string }) => d.message).join('. ')
+            : null
+          setError(detailMsg || json.error || 'Error al crear el evento')
           return
         }
         setOpen(false)

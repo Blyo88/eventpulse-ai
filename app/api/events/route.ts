@@ -8,10 +8,13 @@ const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const organizationId = request.headers.get('x-organization-id') || DEMO_ORG_ID
+    const organizationId = request.headers.get('x-organization-id') || body.organization_id || DEMO_ORG_ID
 
     // Validate with Zod
-    const validatedData = createEventSchema.parse(body)
+    const validatedData = createEventSchema.parse({
+      ...body,
+      organization_id: organizationId,
+    })
 
     // Create event via service
     const event = await eventService.createEvent(validatedData, organizationId)
