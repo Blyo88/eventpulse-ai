@@ -30,6 +30,7 @@ export const eventService = {
       .from('events')
       .insert({
         id: GENERAL_STUDIO_EVENT_ID,
+        user_id: '00000000-0000-0000-0000-000000000001',
         organization_id: organizationId,
         title: 'Estudio Libre General',
         description: 'Espacio de creación y análisis independiente con IA',
@@ -39,7 +40,7 @@ export const eventService = {
         is_virtual: true,
         enable_check_in: false,
         enable_location_heat_map: false,
-      })
+      } as any)
       .select('*')
       .single()
 
@@ -55,7 +56,8 @@ export const eventService = {
   async createEvent(input: CreateEventInput, organizationId: string): Promise<EventRow> {
     const supabase = createAdminClient()
 
-    const eventData: TablesInsert<'events'> = {
+    const eventData = {
+      user_id: '00000000-0000-0000-0000-000000000001',
       organization_id: organizationId,
       title: input.title,
       description: input.description ?? null,
@@ -66,7 +68,7 @@ export const eventService = {
       is_virtual: input.is_virtual,
       enable_check_in: input.enable_check_in,
       enable_location_heat_map: input.enable_location_heat_map,
-    }
+    } as any
 
     const { data, error } = await supabase
       .from('events')
