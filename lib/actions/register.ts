@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getSiteUrl } from '@/lib/site-url'
 import { z } from 'zod'
 
 const registerSchema = z.object({
@@ -40,6 +41,9 @@ export async function registerAction(
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
+    options: {
+      emailRedirectTo: `${await getSiteUrl()}/auth/confirm`,
+    },
   })
 
   if (error) {

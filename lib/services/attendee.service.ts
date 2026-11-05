@@ -6,7 +6,7 @@ import type { CheckInAttendeeInput, RegisterAttendeeInput } from '@/lib/validati
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 
 type AttendeeRow = Tables<'attendees'>
-const DEMO_ORG_ID = 'demo-org-id'
+const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export const attendeeService = {
   async countAllAttendees(eventIds: string[]): Promise<number> {
