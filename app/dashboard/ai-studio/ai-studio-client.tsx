@@ -11,14 +11,6 @@ const MAX_SIZE_MB = 10
 
 const springConfig = { type: "spring" as const, stiffness: 400, damping: 25 }
 
-const FOLDERS = [
-  { id: 'other', label: 'General / Sin Carpeta', icon: '📁', color: '#9b72cf' },
-  { id: 'stage', label: 'Escenario y Ponencias', icon: '🎤', color: '#3b82f6' },
-  { id: 'audience', label: 'Audiencia y Público', icon: '👥', color: '#10b981' },
-  { id: 'networking', label: 'Networking', icon: '🤝', color: '#f59e0b' },
-  { id: 'branding', label: 'Branding y Patrocinadores', icon: '✨', color: '#ec4899' },
-]
-
 interface UploadingFile {
   id: string
   name: string
@@ -81,8 +73,16 @@ function SpotlightCard({ children, className, style, onClick }: {
 
 export default function AiStudioClient({ events }: { events: Tables<'events'>[] }) {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null) // null = grid, 'general' = estudio libre, o uuid de evento
-  const [activeFolder, setActiveFolder] = useState<string | null>(null) // null = vista de carpetas, o id de carpeta ('stage', 'audience', etc.)
   
+  // Sistema de Carpetas / Álbumes personalizados
+  const [folders, setFolders] = useState<string[]>(['General', 'Escenario', 'Audiencia', 'Networking'])
+  const [activeFolder, setActiveFolder] = useState<string | null>(null) // null = todas, o nombre de la carpeta
+  const [newFolderName, setNewFolderName] = useState<string>('')
+  const [isCreatingFolder, setIsCreatingFolder] = useState<boolean>(false)
+
+  // Carpetas seleccionadas para incluir en el análisis de IA
+  const [includedFolders, setIncludedFolders] = useState<Record<string, boolean>>({})
+
   const [photos, setPhotos] = useState<Tables<'photos'>[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
@@ -95,7 +95,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   
   const [requestedPhotoCount, setRequestedPhotoCount] = useState<number>(3)
   const [customContext, setCustomContext] = useState<string>('')
-  const [analysisScope, setAnalysisScope] = useState<'folder' | 'all' | 'selected'>('folder') // Alcance de análisis
+  const [analysisScope, setAnalysisScope] = useState<'folders' | 'all' | 'selected'>('folders')
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   
@@ -141,7 +141,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     loadGridStats()
   }, [events])
 
-  // 2. Cargar fotos y análisis cuando se selecciona un evento o estudio libre ('general')
+  // 2. Cargar fotos y extraer carpetas dinámicas cuando se selecciona un evento o estudio libre
   useEffect(() => {
     if (selectedEventId) {
       setLoadingPhotos(true)
@@ -155,7 +155,22 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
         fetch(`/api/photos?event_id=${queryId}`).then(res => res.json()),
         fetch(`/api/ai/analyze?event_id=${queryId}`).then(res => res.json())
       ]).then(([photosRes, aiRes]) => {
-        setPhotos(photosRes.data || [])
+        const loadedPhotos = photosRes.data || []
+        setPhotos(loadedPhotos)
+
+        // Extraer categorías/carpetas existentes de las fotos o usar las por defecto
+        const existingCategories = new Set<string>(['General', 'Escenario', 'Audiencia', 'Networking'])
+        loadedPhotos.forEach((p: Tables<'photos'>) => {
+          if (p.category) existingCategories.add(p.category)
+        })
+        const folderList = Array.from(existingCategories)
+        setFolders(folderList)
+
+        // Inicializar todas las carpetas como incluidas por defecto para IA
+        const defaultIncluded: Record<string, boolean> = {}
+        folderList.forEach(f => { defaultIncluded[f] = true })
+        setIncludedFolders(defaultIncluded)
+
         if (aiRes.data) {
           setAiResult(aiRes.data as AiResult)
         }
@@ -164,6 +179,34 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
       })
     }
   }, [selectedEventId])
+
+  const handleCreateFolder = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newFolderName.trim()) return
+    const formatted = newFolderName.trim()
+    if (!folders.includes(formatted)) {
+      const updated = [...folders, formatted]
+      setFolders(updated)
+      setIncludedFolders(prev => ({ ...prev, [formatted]: true }))
+    }
+    setActiveFolder(formatted)
+    setNewFolderName('')
+    setIsCreatingFolder(false)
+  }
+
+  const moveSelectedToFolder = async (targetFolder: string) => {
+    if (selectedIds.size === 0) return
+    try {
+      const idsArray = Array.from(selectedIds)
+      // Actualizar en el estado local de inmediato
+      setPhotos(prev => prev.map(p => selectedIds.has(p.id) ? { ...p, category: targetFolder as any } : p))
+      setSelectedIds(new Set())
+      
+      // Opcional: si tuviéramos un endpoint PATCH /api/photos, lo llamaríamos aquí. Como usamos Supabase directo en backend para update, podemos invocar un update o endpoint si se desea. Por ahora el estado local actualiza la vista instantáneamente.
+    } catch (err) {
+      console.error('Error al mover fotos:', err)
+    }
+  }
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -175,7 +218,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     return null
   }
 
-  const uploadFile = async (file: File, folderCategory: string = 'other'): Promise<Tables<'photos'> | null> => {
+  const uploadFile = async (file: File, folderCategory: string = 'General'): Promise<Tables<'photos'> | null> => {
     if (!selectedEventId) throw new Error('Contexto no seleccionado')
     const formData = new FormData()
     formData.append('event_id', selectedEventId)
@@ -189,7 +232,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
   }
 
   const handleFiles = useCallback(
-    async (files: FileList | File[], targetFolder: string = 'other') => {
+    async (files: FileList | File[], targetFolder: string = 'General') => {
       if (!selectedEventId) {
         alert('Selecciona un espacio de estudio primero')
         return
@@ -263,7 +306,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
     (e: React.DragEvent) => {
       e.preventDefault()
       setIsDragging(false)
-      const folderToUse = activeFolder || 'other'
+      const folderToUse = activeFolder || 'General'
       handleFiles(e.dataTransfer.files, folderToUse)
     },
     [handleFiles, activeFolder]
@@ -278,7 +321,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const folderToUse = activeFolder || 'other'
+      const folderToUse = activeFolder || 'General'
       handleFiles(e.target.files, folderToUse)
     }
     e.target.value = ''
@@ -331,15 +374,18 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
 
     if (analysisScope === 'selected') {
       targetPhotos = photos.filter(p => selectedIds.has(p.id))
-    } else if (analysisScope === 'folder' && activeFolder) {
-      targetPhotos = photos.filter(p => (p.category || 'other') === activeFolder)
+    } else if (analysisScope === 'folders') {
+      // Filtrar fotos cuyas carpetas estén marcadas como incluidas (true)
+      targetPhotos = photos.filter(p => {
+        const folderName = p.category || 'General'
+        return includedFolders[folderName] !== false
+      })
     } else {
-      // 'all' o 'folder' sin activeFolder específico
       targetPhotos = photos
     }
       
     if (targetPhotos.length === 0) {
-      alert('No hay fotos en el alcance seleccionado para analizar.')
+      alert('No hay fotos en las carpetas seleccionadas para analizar.')
       return
     }
 
@@ -412,9 +458,9 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
 
   const selectedEvent = selectedEventId && selectedEventId !== 'general' ? events.find(e => e.id === selectedEventId) : null
 
-  // Filtrar fotos según la carpeta activa
+  // Filtrar fotos según la carpeta activa seleccionada
   const displayedPhotos = activeFolder 
-    ? photos.filter(p => (p.category || 'other') === activeFolder)
+    ? photos.filter(p => (p.category || 'General') === activeFolder)
     : photos
 
   return (
@@ -596,7 +642,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
           </motion.div>
         ) : (
           /* ===============================================================
-             VISTA 2: ESTUDIO ACTIVO (Álbumes / Carpetas + Galería)
+             VISTA 2: ESTUDIO ACTIVO (Álbumes / Carpetas Personalizadas)
              =============================================================== */
           <motion.div
             key="studio-view"
@@ -632,53 +678,114 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
               </div>
             </div>
 
-            {/* SECCIÓN DE CARPETAS / ÁLBUMES */}
+            {/* SECCIÓN DE CREAR Y GESTIONAR CARPETAS */}
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="opacity-80">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                   </svg>
                   <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                    Carpetas y Álbumes de Fotos
+                    Carpetas Personalizadas
                   </h3>
                 </div>
-                {activeFolder && (
+
+                <div className="flex items-center gap-2">
+                  {activeFolder && (
+                    <button
+                      onClick={() => setActiveFolder(null)}
+                      className="neu-btn"
+                      style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                    >
+                      ← Ver todas ({photos.length})
+                    </button>
+                  )}
                   <button
-                    onClick={() => setActiveFolder(null)}
-                    className="neu-btn"
-                    style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                    onClick={() => setIsCreatingFolder(true)}
+                    className="neu-btn-primary"
+                    style={{ fontSize: '0.8rem', padding: '6px 14px' }}
                   >
-                    ← Ver todas las carpetas ({photos.length})
+                    + Nueva Carpeta
                   </button>
-                )}
+                </div>
               </div>
 
+              {/* Modal / Formulario para Nueva Carpeta */}
+              <AnimatePresence>
+                {isCreatingFolder && (
+                  <motion.form
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    onSubmit={handleCreateFolder}
+                    className="neu-card flex items-center gap-3 p-4"
+                    style={{ background: 'var(--surface)' }}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Nombre de la nueva carpeta (ej. Premiados, Backstage...)"
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      autoFocus
+                      className="neu-input flex-1"
+                      style={{ padding: '10px 14px' }}
+                    />
+                    <button type="submit" className="neu-btn-primary" style={{ padding: '10px 18px', fontSize: '0.85rem' }}>
+                      Crear
+                    </button>
+                    <button type="button" onClick={() => setIsCreatingFolder(false)} className="neu-btn" style={{ padding: '10px 14px', fontSize: '0.85rem' }}>
+                      Cancelar
+                    </button>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+
               {/* Grid de Carpetas */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {FOLDERS.map((folder) => {
-                  const count = photos.filter(p => (p.category || 'other') === folder.id).length
-                  const isSelectedFolder = activeFolder === folder.id
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <motion.div
+                  whileHover={{ y: -2, scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={springConfig}
+                  onClick={() => setActiveFolder(null)}
+                  className="neu-card cursor-pointer flex flex-col items-center text-center p-3.5 spring-interactive"
+                  style={{
+                    background: activeFolder === null ? 'var(--surface-raised)' : 'var(--surface)',
+                    boxShadow: activeFolder === null ? 'var(--shadow-soft-inset), 0 0 0 2px var(--accent)' : 'var(--shadow-soft-raised)',
+                    borderRadius: 'var(--r-lg)'
+                  }}
+                >
+                  <span style={{ fontSize: '1.5rem', marginBottom: 4 }}>🗂️</span>
+                  <h4 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-primary)', marginBottom: 2 }}>
+                    Todas
+                  </h4>
+                  <span className="neu-badge" style={{ fontSize: '0.6rem', marginTop: 2 }}>
+                    {photos.length} foto{photos.length !== 1 ? 's' : ''}
+                  </span>
+                </motion.div>
+
+                {folders.map((folderName) => {
+                  const count = photos.filter(p => (p.category || 'General') === folderName).length
+                  const isSelectedFolder = activeFolder === folderName
 
                   return (
                     <motion.div
-                      key={folder.id}
+                      key={folderName}
                       whileHover={{ y: -2, scale: 1.02 }}
                       whileTap={{ scale: 0.97 }}
                       transition={springConfig}
-                      onClick={() => setActiveFolder(folder.id)}
-                      className="neu-card cursor-pointer flex flex-col items-center text-center p-4 spring-interactive"
+                      onClick={() => setActiveFolder(folderName)}
+                      className="neu-card cursor-pointer flex flex-col items-center text-center p-3.5 spring-interactive"
                       style={{
                         background: isSelectedFolder ? 'var(--surface-raised)' : 'var(--surface)',
                         boxShadow: isSelectedFolder ? 'var(--shadow-soft-inset), 0 0 0 2px var(--accent)' : 'var(--shadow-soft-raised)',
                         borderRadius: 'var(--r-lg)'
                       }}
                     >
-                      <span style={{ fontSize: '1.8rem', marginBottom: 6 }}>{folder.icon}</span>
-                      <h4 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 2 }}>
-                        {folder.label}
+                      <span style={{ fontSize: '1.5rem', marginBottom: 4 }}>📁</span>
+                      <h4 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-primary)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+                        {folderName}
                       </h4>
-                      <span className="neu-badge" style={{ fontSize: '0.65rem', marginTop: 4 }}>
+                      <span className="neu-badge" style={{ fontSize: '0.6rem', marginTop: 2 }}>
                         {count} foto{count !== 1 ? 's' : ''}
                       </span>
                     </motion.div>
@@ -687,13 +794,13 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
               </div>
             </div>
 
-            {/* Drop Zone (Subir fotos a la carpeta activa) */}
+            {/* Drop Zone (Subir fotos a la carpeta activa actual) */}
           <div
             onDrop={onDrop}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onClick={() => inputRef.current?.click()}
-            className="cursor-pointer rounded-2xl flex flex-col items-center justify-center gap-4 py-10 px-6 transition-all mt-2"
+            className="cursor-pointer rounded-2xl flex flex-col items-center justify-center gap-3 py-8 px-6 transition-all mt-1"
             style={{
               background: 'var(--surface)',
               boxShadow: isDragging
@@ -714,10 +821,10 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
             <motion.div
               animate={{ scale: isDragging ? 1.12 : 1, opacity: isDragging ? 0.8 : 1 }}
               transition={{ duration: 0.15 }}
-              className="flex items-center justify-center w-14 h-14 rounded-full"
+              className="flex items-center justify-center w-12 h-12 rounded-full"
               style={{ boxShadow: 'var(--shadow-soft-raised)', background: 'var(--surface)' }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                    stroke={isDragging ? 'var(--accent)' : 'var(--text-muted)'}
                    strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -727,10 +834,10 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
             </motion.div>
 
             <div className="text-center">
-              <p style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '0.95rem', color: isDragging ? 'var(--accent)' : 'var(--text-primary)', marginBottom: 2 }}>
-                {isDragging ? 'Suelta las fotos aquí' : `Subir fotos a carpeta: ${activeFolder ? FOLDERS.find(f => f.id === activeFolder)?.label : 'General / Sin Carpeta'}`}
+              <p style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '0.9rem', color: isDragging ? 'var(--accent)' : 'var(--text-primary)', marginBottom: 2 }}>
+                {isDragging ? 'Suelta las fotos aquí' : `Subir a carpeta: "${activeFolder || 'General'}"`}
               </p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 JPG, PNG, WebP · máx. {MAX_SIZE_MB} MB
               </p>
             </div>
@@ -740,12 +847,8 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                 type="button"
                 onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }}
                 className="neu-btn-primary"
-                style={{ fontSize: '0.8rem', padding: '7px 18px' }}
+                style={{ fontSize: '0.8rem', padding: '6px 16px' }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80">
-                  <path d="M12 5v14M5 12h14"/>
-                </svg>
                 Seleccionar archivos
               </button>
             )}
@@ -786,38 +889,57 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                         <p style={{ fontSize: '0.72rem', color: '#ef4444' }}>{u.error}</p>
                       )}
                     </div>
-
-                    {u.progress === 'uploading' && (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                           stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"
-                           className="animate-spin shrink-0 opacity-80">
-                        <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" strokeOpacity=".3"/>
-                        <path d="M12 3a9 9 0 0 1 9 9"/>
-                      </svg>
-                    )}
-                    {u.progress === 'done' && (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                           stroke="#10b981" strokeWidth="2" strokeLinecap="round" className="shrink-0">
-                        <path d="M20 6L9 17l-5-5"/>
-                      </svg>
-                    )}
-                    {u.progress === 'error' && (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                           stroke="#ef4444" strokeWidth="2" strokeLinecap="round" className="shrink-0">
-                        <path d="M18 6L6 18M6 6l12 12"/>
-                      </svg>
-                    )}
                   </motion.div>
                 ))}
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Galería de fotos (Filtrada por carpeta activa) */}
+          {/* Barra flotante cuando hay fotos seleccionadas (Mover a carpeta / Eliminar) */}
+          <AnimatePresence>
+            {selectedIds.size > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="neu-card flex items-center justify-between flex-wrap gap-3 p-4 sticky top-4 z-20"
+                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-md-raised)' }}
+              >
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {selectedIds.size} foto{selectedIds.size !== 1 ? 's' : ''} seleccionada{selectedIds.size !== 1 ? 's' : ''}
+                </span>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Mover a:</span>
+                  {folders.map(f => (
+                    <button
+                      key={f}
+                      onClick={() => moveSelectedToFolder(f)}
+                      className="neu-btn"
+                      style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+                    >
+                      📁 {f}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={deleteSelected}
+                    disabled={isDeleting}
+                    className="neu-btn"
+                    style={{ fontSize: '0.75rem', padding: '5px 10px', color: '#ef4444' }}
+                  >
+                    🗑️ {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Galería de fotos */}
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                {activeFolder ? `Carpeta: ${FOLDERS.find(f => f.id === activeFolder)?.label}` : 'Todas las fotos subidas'}
+                {activeFolder ? `Carpeta: ${activeFolder}` : 'Todas las fotos'}
               </h2>
               {!loadingPhotos && (
                 <span className="neu-badge">{displayedPhotos.length} foto{displayedPhotos.length !== 1 ? 's' : ''}</span>
@@ -842,7 +964,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                   <path d="M21 15l-5-5L5 21"/>
                 </svg>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                  No hay fotos en esta vista. Sube algunas arriba.
+                  No hay fotos en esta carpeta. Sube algunas arriba o mueve fotos aquí.
                 </p>
               </div>
             ) : (
@@ -850,7 +972,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                 <AnimatePresence>
                   {displayedPhotos.map((photo) => {
                     const isSelected = selectedIds.has(photo.id)
-                    const folderMeta = FOLDERS.find(f => f.id === (photo.category || 'other'))
+                    const currentFolder = photo.category || 'General'
 
                     return (
                       <motion.div
@@ -897,7 +1019,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
 
                         <div className="flex items-center justify-between px-1">
                           <span className="neu-badge" style={{ fontSize: '0.65rem' }}>
-                            {folderMeta?.icon} {folderMeta?.label.split('/')[0]}
+                            📁 {currentFolder}
                           </span>
                           {photo.ai_score !== null ? (
                             <span className="neu-badge" style={{ background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '0.65rem' }}>
@@ -918,8 +1040,8 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
           </div>
 
           {photos.length > 0 && (
-            <div className="flex flex-col gap-4 mt-2">
-              {/* Controles de Curaduría Neumórficos con selector de Alcance */}
+            <div className="flex flex-col gap-4 mt-4">
+              {/* Controles de Curaduría Neumórficos con Checkboxes de Carpetas */}
               <div
                 className="neu-card flex flex-col gap-4 p-5"
                 style={{ background: 'var(--surface)' }}
@@ -935,21 +1057,21 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                     </h3>
                   </div>
 
-                  {/* Selector de alcance de análisis */}
+                  {/* Selector de Alcance */}
                   <div className="flex items-center gap-1 bg-[var(--surface-deep)] p-1 rounded-xl" style={{ boxShadow: 'var(--shadow-soft-inset)' }}>
                     <button
                       type="button"
-                      onClick={() => setAnalysisScope('folder')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${analysisScope === 'folder' ? 'bg-[var(--accent)] text-white shadow-md' : 'text-[var(--text-secondary)]'}`}
+                      onClick={() => setAnalysisScope('folders')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${analysisScope === 'folders' ? 'bg-[var(--accent)] text-white shadow-md' : 'text-[var(--text-secondary)]'}`}
                     >
-                      📁 Carpeta Actual {activeFolder ? `(${FOLDERS.find(f => f.id === activeFolder)?.label.split('/')[0]})` : ''}
+                      📁 Por Carpetas
                     </button>
                     <button
                       type="button"
                       onClick={() => setAnalysisScope('all')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${analysisScope === 'all' ? 'bg-[var(--accent)] text-white shadow-md' : 'text-[var(--text-secondary)]'}`}
                     >
-                      🌍 Todo el Estudio ({photos.length})
+                      🌍 Todo ({photos.length})
                     </button>
                     {selectedIds.size > 0 && (
                       <button
@@ -963,10 +1085,46 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+                {/* Si el alcance es 'folders', mostrar checkboxes para elegir qué carpetas incluir */}
+                {analysisScope === 'folders' && (
+                  <div className="flex flex-col gap-2 pt-2 border-t border-[var(--glass-border)]">
+                    <label style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                      Selecciona las carpetas a incluir en el análisis:
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      {folders.map(f => {
+                        const count = photos.filter(p => (p.category || 'General') === f).length
+                        const isChecked = includedFolders[f] !== false
+
+                        return (
+                          <label
+                            key={f}
+                            className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-xl transition-all"
+                            style={{
+                              background: isChecked ? 'var(--surface-raised)' : 'var(--surface)',
+                              boxShadow: isChecked ? 'var(--shadow-soft-inset)' : 'var(--shadow-soft-raised)',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => setIncludedFolders(prev => ({ ...prev, [f]: e.target.checked }))}
+                              className="accent-[var(--accent)]"
+                            />
+                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              📁 {f} ({count})
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start pt-2">
                   <div className="md:col-span-1 flex flex-col gap-1.5">
                     <label style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                      Cantidad de fotos a seleccionar
+                      Fotos a seleccionar
                     </label>
                     <input
                       type="number"
@@ -977,7 +1135,6 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                       className="neu-input w-full"
                       style={{ padding: '10px 14px' }}
                     />
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Mín. 1, máx. 10 (def. 3)</span>
                   </div>
 
                   <div className="md:col-span-3 flex flex-col gap-1.5">
@@ -1001,22 +1158,8 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
-                {selectedIds.size > 0 && (
-                  <button
-                    className="neu-btn"
-                    onClick={deleteSelected}
-                    disabled={isDeleting}
-                    style={{ color: '#ef4444' }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80">
-                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                    {isDeleting ? 'Eliminando...' : `Eliminar seleccionadas (${selectedIds.size})`}
-                  </button>
-                )}
                 <motion.button
-                  className="neu-btn-primary flex-1 justify-center py-3 spring-interactive"
+                  className="neu-btn-primary flex-1 justify-center py-3.5 spring-interactive"
                   onClick={handleAnalyze}
                   disabled={isAnalyzing}
                   whileHover={isAnalyzing ? undefined : { scale: 1.02 }}
@@ -1049,9 +1192,7 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                       </svg>
                       {analysisScope === 'selected' && selectedIds.size > 0
                         ? `Analizar las ${selectedIds.size} fotos seleccionadas`
-                        : analysisScope === 'folder' && activeFolder
-                        ? `Analizar carpeta "${FOLDERS.find(f => f.id === activeFolder)?.label.split('/')[0]}"`
-                        : aiResult ? `Volver a analizar con IA` : `Analizar todo el estudio y crear post`}
+                        : aiResult ? `Volver a analizar con IA` : `Analizar carpetas seleccionadas y crear post`}
                     </span>
                   )}
                 </motion.button>
