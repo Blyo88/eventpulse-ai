@@ -59,7 +59,13 @@ class AiService {
     return data
   }
 
-  async analyzePhotosAndGenerateCopy(imageUrls: string[], eventName?: string, eventDescription?: string): Promise<AiAnalysisResult> {
+  async analyzePhotosAndGenerateCopy(
+    imageUrls: string[],
+    eventName?: string,
+    eventDescription?: string,
+    requestedPhotoCount: number = 3,
+    customContext?: string
+  ): Promise<AiAnalysisResult> {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error('La variable de entorno GEMINI_API_KEY no está configurada.')
     }
@@ -81,8 +87,8 @@ class AiService {
     const promptText = `
       Actúa como Social Media Manager. Analiza la siguiente descripción del evento: '${eventDescription || ""}'. Si esta descripción contiene información, ES OBLIGATORIO que te bases en ella para redactar el copy del evento '${eventName || ""}'. Si está vacía, deduce el contexto solo por las imágenes. Adapta tu tono a la temática.
       A continuación, recibirás una serie de imágenes pertenecientes al evento. Tu tarea es:
-      1. Analiza todas las fotos. Selecciona un TOP de las mejores (mínimo 1, máximo 4, según la cantidad y calidad). Excluye las borrosas.
-      2. Redactar un copy atractivo para redes sociales (LinkedIn/Instagram) resumiendo el éxito del evento, basado en lo que ves y el contexto. Usa emojis, un tono entusiasta pero profesional, e incluye hashtags relevantes.
+      1. Debes seleccionar EXACTAMENTE ${requestedPhotoCount} fotos de la lista de URLs proporcionada. Ni más ni menos. Elige las de mejor calidad técnica, enfoque y composición. Excluye las borrosas.
+      2. Para redactar el copy, básate en la descripción del evento '${eventDescription || ''}'. ADEMÁS, el usuario ha dado esta instrucción específica: '${customContext || ''}'. Si esta instrucción adicional no está vacía, es OBLIGATORIO que la incluyas y adaptes el tono a lo que pide. Si está vacía, genera el texto automáticamente basado en la descripción general. Redacta un copy atractivo para redes sociales (LinkedIn/Instagram) con emojis, un tono entusiasta pero profesional, e incluye hashtags relevantes.
       3. Asignar un AI Score a cada foto elegida del 0 al 100 y dar una pequeña razón ("reason") justificando por qué se eligió.
       
       Devuelve ESTRICTAMENTE un objeto JSON con la siguiente estructura y claves exactas.

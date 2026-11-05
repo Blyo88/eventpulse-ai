@@ -10,6 +10,8 @@ const analyzeSchema = z.object({
   eventName: z.string().optional(),
   eventDescription: z.string().optional(),
   eventId: z.string().optional(),
+  requestedPhotoCount: z.number().int().min(1).max(10).default(3),
+  customContext: z.string().optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { imageUrls, eventName, eventDescription, eventId: rawEventId } = parsed.data
+    const { imageUrls, eventName, eventDescription, eventId: rawEventId, requestedPhotoCount, customContext } = parsed.data
     
     const eventId = (!rawEventId || rawEventId === 'general' || rawEventId === GENERAL_STUDIO_EVENT_ID)
       ? GENERAL_STUDIO_EVENT_ID
@@ -75,7 +77,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Llamar a Gemini Vision
-    const aiResult = await aiService.analyzePhotosAndGenerateCopy(imageUrls, eventName, eventDescription)
+    const aiResult = await aiService.analyzePhotosAndGenerateCopy(
+      imageUrls,
+      eventName,
+      eventDescription,
+      requestedPhotoCount,
+      customContext
+    )
     
     // Guardar en la base de datos
     await aiService.saveAnalysis(eventId, aiResult)
