@@ -4,6 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # NEXT_PUBLIC_* vars are intentionally inlined in the client bundle by Next.js.
+  # The Supabase anon key is public by design and protected by Row Level Security.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_URL"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
