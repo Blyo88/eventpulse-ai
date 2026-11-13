@@ -58,6 +58,14 @@ export async function registerAction(
       const email = parsed.data.email
       const orgName = email.split('@')[0] + ' Workspace'
 
+      // Crear perfil público si no existe
+      await admin
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email: email,
+        }, { onConflict: 'id' })
+
       // Crear organización personal
       const { data: org, error: orgError } = await admin
         .from('organizations')

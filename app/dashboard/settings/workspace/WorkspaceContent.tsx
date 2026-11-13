@@ -126,18 +126,23 @@ export default function WorkspaceContent({ org, members, orgId, userEmail }: any
           <div className="grid gap-3">
             {members.map((member: any) => {
               const roleInfo = ROLE_COLORS[member.role] || ROLE_COLORS.spectator
+              const email = member.profile?.email || 'Usuario'
+              const fullName = member.profile?.full_name
+              const displayName = fullName || email.split('@')[0]
+              const initials = displayName.substring(0, 2).toUpperCase()
+
               return (
                 <SpotlightCard key={member.id} className="neu-card flex items-center justify-between p-4 rounded-2xl">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-soft-inset)', color: 'var(--accent)' }}>
-                      {member.user_id ? member.user_id.substring(0, 2).toUpperCase() : 'US'}
+                      {initials}
                     </div>
                     <div>
                       <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                        ID de Usuario: {member.user_id}
+                        {email}
                       </p>
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        Miembro desde {new Date(member.created_at).toLocaleDateString()}
+                        {fullName ? `${fullName} · ` : ''}Miembro desde {new Date(member.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
