@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { resolveIncidentAction } from '@/lib/actions/incident'
 
 interface ResolveIncidentModalProps {
   incidentId: string
@@ -29,22 +30,17 @@ export default function ResolveIncidentModal({ incidentId, trigger }: ResolveInc
 
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/incidents/${incidentId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resolution_note }),
-        })
-        const json = await res.json()
+        const result = await resolveIncidentAction(incidentId, resolution_note)
         
-        if (!res.ok) {
-          setError(json.error ?? 'Error al resolver incidente')
+        if (!result.success) {
+          setError(result.error ?? 'Error al resolver incidente')
           return
         }
         
         setOpen(false)
         router.refresh()
       } catch {
-        setError('Error de red. Intenta de nuevo.')
+        setError('Error inesperado. Intenta de nuevo.')
       }
     })
   }

@@ -910,9 +910,18 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
                 className="neu-card flex items-center justify-between flex-wrap gap-3 p-4 sticky top-4 z-20"
                 style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-md-raised)' }}
               >
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {selectedIds.size} foto{selectedIds.size !== 1 ? 's' : ''} seleccionada{selectedIds.size !== 1 ? 's' : ''}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {selectedIds.size} foto{selectedIds.size !== 1 ? 's' : ''} seleccionada{selectedIds.size !== 1 ? 's' : ''}
+                  </span>
+                  <button
+                    onClick={() => setSelectedIds(new Set())}
+                    className="neu-btn"
+                    style={{ fontSize: '0.72rem', padding: '4px 10px', color: 'var(--text-muted)' }}
+                  >
+                    ✕ Deseleccionar todas
+                  </button>
+                </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Mover a:</span>
