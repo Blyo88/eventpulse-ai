@@ -51,7 +51,7 @@ export default function ResolveIncidentModal({ incidentId, trigger }: ResolveInc
 
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -60,21 +60,27 @@ export default function ResolveIncidentModal({ incidentId, trigger }: ResolveInc
               transition={{ duration: 0.2 }}
               onClick={() => !isPending && setOpen(false)}
               className="fixed inset-0"
-              style={{ background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(6px)' }}
+              style={{ background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)' }}
             />
 
             {/* Modal Dialog */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
-              className="neu-card w-full max-w-md relative z-10"
-              style={{ padding: '28px', background: 'var(--surface-raised)', boxShadow: 'var(--shadow-md-raised)' }}
+              className="neu-card w-full max-w-md relative z-10 my-auto max-h-[90vh] overflow-y-auto flex flex-col"
+              style={{
+                padding: '28px',
+                background: 'var(--surface-raised)',
+                boxShadow: 'var(--shadow-md-raised)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '24px',
+              }}
               role="dialog"
               aria-modal="true"
             >
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-5 shrink-0">
                 <div>
                   <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
                     Resolver / Chequear Incidente
@@ -99,7 +105,7 @@ export default function ResolveIncidentModal({ incidentId, trigger }: ResolveInc
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 {error && (
-                  <p className="text-xs text-center p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                  <p className="text-xs text-center p-3 rounded-xl shrink-0" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
                     {error}
                   </p>
                 )}
@@ -128,7 +134,7 @@ export default function ResolveIncidentModal({ incidentId, trigger }: ResolveInc
                   />
                 </div>
 
-                <div className="flex gap-3 mt-3">
+                <div className="flex gap-3 mt-3 shrink-0">
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
