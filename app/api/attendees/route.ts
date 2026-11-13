@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { attendeeService } from '@/lib/services/attendee.service'
+import { assertEventAccess, getAuthUser } from '@/lib/auth/get-user'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const { organizationId } = await getAuthUser()
+    if (!organizationId) {
+      return NextResponse.json({ error: 'No tienes una organización asignada' }, { status: 403 })
+    }
     const body = await request.json()
     const { event_id, full_name, email, registered_via } = body
 
@@ -14,6 +19,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    await assertEventAccess(event_id, organizationId)
 
     const attendee = await attendeeService.registerAttendee({
       event_id,

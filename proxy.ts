@@ -2,36 +2,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-/**
- * Proxy de autenticación — Next.js 16 (renombrado desde middleware.ts).
- *
- * Protege /dashboard/* y /api/* redirigiendo a /login si no hay sesión válida.
- * Refresca el token de sesión en cada request navegable para mantenerlo vivo.
- *
- * Nota del SKILL: el proxy de Next 16 NO usa @supabase/ssr getAll/setAll
- * a través de cookies() de next/headers — usa los métodos de NextRequest/NextResponse
- * directamente, porque proxy corre antes del runtime de Server Components.
- */
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  // Rutas públicas — siempre dejar pasar sin verificar sesión
-  const isPublic =
-    pathname === '/' ||
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.startsWith('/api/webhooks') // webhooks externos no requieren auth
-
-  // Permitir APIs con Authorization header (para tests y herramientas externas)
-  const hasAuthHeader = request.headers.get('authorization')
-  
-  if (isPublic || hasAuthHeader) {
-    return NextResponse.next()
-  }
-
-  let response = NextResponse.next({
-    request: { headers: request.headers },
+  let supabaseResponse = NextResponse.next({
+    request,
   })
 
   const supabase = createServerClient(
@@ -46,34 +19,70 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          response = NextResponse.next({
-            request: { headers: request.headers },
+          supabaseResponse = NextResponse.next({
+            request,
           })
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options)
           )
         },
       },
     }
   )
 
+  // IMPORTANT: DO NOT remove this getUser call.
+  // It refreshes the auth token and keeps the session alive.
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Si el usuario no está autenticado, redirigir a /login
-  if (!user) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(loginUrl)
+  // If user is not logged in and trying to access dashboard or API, redirect to login
+  const { pathname } = request.nextUrl
+
+  if (
+    !user &&
+    (pathname.startsWith('/dashboard') || pathname.startsWith('/api'))
+  ) {
+    // Allow public API routes (webhooks, virtual check-in)
+    if (
+      pathname.startsWith('/api/webhooks') ||
+      pathname.startsWith('/api/checkin/virtual')
+    ) {
+      return supabaseResponse
+    }
+
+    // For API routes, return 401
+    if (pathname.startsWith('/api')) {
+      return NextResponse.json(
+        { error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    // For dashboard pages, redirect to login
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
   }
 
-  return response
+  // If user is logged in and trying to access login/register, redirect to dashboard
+  if (user && (pathname === '/login' || pathname === '/register')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
+  return supabaseResponse
 }
 
 export const config = {
   matcher: [
-    // Solo proteger rutas del dashboard — las APIs son internas y se consumen desde el frontend ya autenticado
-    '/dashboard/:path*',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
   ],
 }

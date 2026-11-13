@@ -32,7 +32,16 @@
   --text-muted:     #a0aec0;
 
   /* Noise overlay (applied via ::before on body) */
-  --noise-opacity: 0.025;
+  --noise-opacity: 0.018;
+
+  /* Geometría y transiciones consistentes para una interfaz más refinada. */
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 30px;
+  --r-pill: 999px;
+  --t-smooth: 180ms ease;
+  --t-press: 120ms ease;
 }
 
 /* ─────────── DARK MODE — Glass-Neumorphism Midnight ─────────── */
@@ -60,7 +69,7 @@
   --text-secondary: #94a3b8;
   --text-muted:     #64748b;
 
-  --noise-opacity: 0.04;
+  --noise-opacity: 0.028;
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -115,14 +124,14 @@ body > * {
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-soft-raised);
   padding: 24px;
-  transition: box-shadow 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1), border-color 0.3s ease;
+  transition: box-shadow 0.22s cubic-bezier(0.4,0,0.2,1), transform 0.22s cubic-bezier(0.4,0,0.2,1), border-color 0.22s ease;
 }
 
 /* Card hover lift */
 .neu-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: var(--shadow-md-raised);
-  border-color: rgba(255,255,255,0.12);
+  border-color: color-mix(in srgb, var(--glass-border) 80%, var(--accent) 20%);
 }
 
 /* Button — Glass-Neumórfico */
@@ -166,7 +175,7 @@ body > * {
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: var(--r-pill);
-  box-shadow: var(--shadow-soft-flat), var(--accent-glow);
+  box-shadow: var(--shadow-soft-flat), 0 6px 16px color-mix(in srgb, var(--accent) 22%, transparent);
   color: #ffffff;
   cursor: pointer;
   font-weight: 700;
@@ -178,8 +187,8 @@ body > * {
 }
 
 .neu-btn-primary:hover {
-  box-shadow: var(--shadow-md-raised), var(--accent-glow);
-  border-color: rgba(255,255,255,0.35);
+  box-shadow: var(--shadow-md-raised), 0 8px 20px color-mix(in srgb, var(--accent) 26%, transparent);
+  border-color: rgba(255,255,255,0.30);
 }
 
 .neu-btn-primary:active {

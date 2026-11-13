@@ -1,5 +1,6 @@
 import { eventService } from '@/lib/services/event.service'
 import { attendeeService } from '@/lib/services/attendee.service'
+import { getAuthUser } from '@/lib/auth/get-user'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import AforoChart from '../aforo-chart'
@@ -66,17 +67,17 @@ function AttendeeRow({ attendee }: { attendee: Tables<'attendees'> }) {
   )
 }
 
-const DEMO_ORG_ID = 'demo-org-id'
-
 export default async function AttendeesPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const { organizationId } = await getAuthUser()
+  if (!organizationId) notFound()
 
   const [event, attendees] = await Promise.all([
-    eventService.getEventById(id, DEMO_ORG_ID).catch(() => null),
+    eventService.getEventById(id, organizationId).catch(() => null),
     attendeeService.getAttendeesByEventId(id),
   ])
 

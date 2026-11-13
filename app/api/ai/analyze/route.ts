@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { aiService } from '@/lib/services/ai.service'
 import { eventService, GENERAL_STUDIO_EVENT_ID } from '@/lib/services/event.service'
+import { getAuthUser, assertEventAccess } from '@/lib/auth/get-user'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,8 @@ const analyzeSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    const { userId, organizationId } = await getAuthUser()
+
     const searchParams = request.nextUrl.searchParams
     const rawEventId = searchParams.get('event_id')
     
@@ -23,16 +26,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'event_id es requerido' }, { status: 400 })
     }
 
-    const eventId = (rawEventId === 'general' || rawEventId === GENERAL_STUDIO_EVENT_ID)
-      ? GENERAL_STUDIO_EVENT_ID
-      : rawEventId
+    let eventId = rawEventId
+    if (rawEventId === 'general' || rawEventId === GENERAL_STUDIO_EVENT_ID) {
+      if (!organizationId) return NextResponse.json({ data: null }, { status: 200 })
+      const generalEvent = await eventService.ensureGeneralStudioEvent(organizationId, userId)
+      eventId = generalEvent.id
+    }
+
+    if (!eventId) return NextResponse.json({ data: null }, { status: 200 })
+    if (!organizationId) return NextResponse.json({ data: null }, { status: 200 })
+    await assertEventAccess(eventId, organizationId)
 
     const saved = await aiService.getAnalysisByEventId(eventId)
     if (!saved) {
       return NextResponse.json({ data: null }, { status: 200 })
     }
 
-    // Adapt database record back to AiResult format for Tarea A frontend
     const adaptedData = {
       selected_photos: saved.selected_photo_urls.map(url => ({
         url,
@@ -45,15 +54,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: adaptedData }, { status: 200 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error desconocido'
+    if (message === 'No autenticado') {
+      return NextResponse.json({ error: message }, { status: 401 })
+    }
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId, organizationId } = await getAuthUser()
+
     const body = await request.json()
     
-    // Si envían data.photo_urls (backward compat), mapearlo a imageUrls
     if (body.photo_urls && !body.imageUrls) {
       body.imageUrls = body.photo_urls;
     }
@@ -68,15 +81,23 @@ export async function POST(request: NextRequest) {
 
     const { imageUrls, eventName, eventDescription, eventId: rawEventId, requestedPhotoCount, customContext } = parsed.data
     
-    const eventId = (!rawEventId || rawEventId === 'general' || rawEventId === GENERAL_STUDIO_EVENT_ID)
+    let eventId = (!rawEventId || rawEventId === 'general' || rawEventId === GENERAL_STUDIO_EVENT_ID)
       ? GENERAL_STUDIO_EVENT_ID
       : rawEventId
 
     if (eventId === GENERAL_STUDIO_EVENT_ID) {
-      await eventService.ensureGeneralStudioEvent()
+      if (!organizationId) {
+        return NextResponse.json({ error: 'No tienes una organización asignada' }, { status: 403 })
+      }
+      const generalEvent = await eventService.ensureGeneralStudioEvent(organizationId, userId)
+      eventId = generalEvent.id
     }
 
-    // Llamar a Gemini Vision
+    if (!organizationId) {
+      return NextResponse.json({ error: 'No tienes una organización asignada' }, { status: 403 })
+    }
+    await assertEventAccess(eventId, organizationId)
+
     const aiResult = await aiService.analyzePhotosAndGenerateCopy(
       imageUrls,
       eventName,
@@ -85,12 +106,14 @@ export async function POST(request: NextRequest) {
       customContext
     )
     
-    // Guardar en la base de datos
     await aiService.saveAnalysis(eventId, aiResult)
 
     return NextResponse.json({ data: aiResult }, { status: 200 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error desconocido'
+    if (message === 'No autenticado') {
+      return NextResponse.json({ error: message }, { status: 401 })
+    }
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -1,30 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createEventSchema } from '@/lib/validations'
 import { eventService } from '@/lib/services/event.service'
+import { getAuthUser } from '@/lib/auth/get-user'
 import { ZodError } from 'zod'
-
-const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const organizationId = request.headers.get('x-organization-id') || body.organization_id || DEMO_ORG_ID
+    const { userId, organizationId } = await getAuthUser()
+    if (!organizationId) {
+      return NextResponse.json({ error: 'No tienes una organización asignada' }, { status: 403 })
+    }
 
-    // Validate with Zod
+    const body = await request.json()
+
     const validatedData = createEventSchema.parse({
       ...body,
       organization_id: organizationId,
     })
 
-    // Create event via service
-    const event = await eventService.createEvent(validatedData, organizationId)
+    const event = await eventService.createEvent(validatedData, organizationId, userId)
 
     return NextResponse.json(
-      {
-        success: true,
-        data: event,
-        message: 'Event created successfully',
-      },
+      { success: true, data: event, message: 'Event created successfully' },
       { status: 201 }
     )
   } catch (error) {
@@ -34,66 +31,43 @@ export async function POST(request: NextRequest) {
         message: issue.message,
       }))
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Validation failed',
-          details: errorDetails,
-        },
+        { success: false, error: 'Validation failed', details: errorDetails },
         { status: 400 }
       )
     }
 
     if (error instanceof Error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: error.message,
-        },
-        { status: 500 }
-      )
+      if (error.message === 'No autenticado') {
+        return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+      }
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Unknown error occurred',
-      },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Unknown error occurred' }, { status: 500 })
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const organizationId = request.headers.get('x-organization-id') || DEMO_ORG_ID
+    const { organizationId } = await getAuthUser()
+    if (!organizationId) {
+      return NextResponse.json({ success: true, data: [], count: 0 }, { status: 200 })
+    }
 
     const events = await eventService.getEvents(organizationId)
 
     return NextResponse.json(
-      {
-        success: true,
-        data: events,
-        count: events.length,
-      },
+      { success: true, data: events, count: events.length },
       { status: 200 }
     )
   } catch (error) {
     if (error instanceof Error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: error.message,
-        },
-        { status: 500 }
-      )
+      if (error.message === 'No autenticado') {
+        return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+      }
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch events',
-      },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Failed to fetch events' }, { status: 500 })
   }
 }

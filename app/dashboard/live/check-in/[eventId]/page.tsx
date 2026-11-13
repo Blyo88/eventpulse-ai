@@ -1,13 +1,15 @@
 import { eventService } from '@/lib/services/event.service'
 import { attendeeService } from '@/lib/services/attendee.service'
+import { getAuthUser } from '@/lib/auth/get-user'
 import ScannerClient from '../scanner-client'
-
-const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 export default async function LiveCheckInPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params
+  const { organizationId } = await getAuthUser()
+  if (!organizationId) return <div>No tienes una organización configurada.</div>
+
   const [event, counts] = await Promise.all([
-    eventService.getEventById(eventId, DEMO_ORG_ID),
+    eventService.getEventById(eventId, organizationId),
     attendeeService.getAttendeeCounts(eventId)
   ])
 

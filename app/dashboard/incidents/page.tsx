@@ -1,5 +1,6 @@
 import { incidentService } from '@/lib/services/incident.service'
 import { eventService } from '@/lib/services/event.service'
+import { getAuthUser } from '@/lib/auth/get-user'
 import ReportIncidentModal from './report-modal'
 import ResolveIncidentModal from './resolve-modal'
 import SpotlightCard from '@/app/components/spotlight-card'
@@ -193,11 +194,12 @@ function EventSection({
   )
 }
 
-const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
-
 export default async function IncidentsPage() {
-  // Traer todos los eventos de la organización
-  const events = await eventService.getEvents(DEMO_ORG_ID)
+  const { organizationId } = await getAuthUser()
+
+  const events = organizationId
+    ? await eventService.getEvents(organizationId)
+    : []
   const eventIds = events.map((e) => e.id)
 
   // Traer todos los incidentes de todos los eventos del usuario

@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const registerSchema = z.object({
@@ -37,17 +38,47 @@ export async function registerAction(
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signUp({
+  const { data: signUpData, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
   })
 
   if (error) {
-    // El usuario ya existe tiene código auth/user_already_exists
     if (error.code === 'user_already_exists') {
       return { error: 'Ya existe una cuenta con este email' }
     }
     return { error: error.message }
+  }
+
+  // Auto-crear organización personal y membership para el nuevo usuario
+  if (signUpData.user) {
+    try {
+      const admin = createAdminClient()
+      const userId = signUpData.user.id
+      const email = parsed.data.email
+      const orgName = email.split('@')[0] + ' Workspace'
+
+      // Crear organización personal
+      const { data: org, error: orgError } = await admin
+        .from('organizations')
+        .insert({ name: orgName })
+        .select('id')
+        .single()
+
+      if (org && !orgError) {
+        // Crear membership como owner
+        await admin
+          .from('organization_members')
+          .insert({
+            organization_id: org.id,
+            user_id: userId,
+            role: 'owner',
+          })
+      }
+    } catch (err) {
+      // No bloquear el registro si falla la creación de org
+      console.error('Error creando organización para nuevo usuario:', err)
+    }
   }
 
   redirect('/login?registered=true')

@@ -6,7 +6,6 @@ import type { CheckInAttendeeInput, RegisterAttendeeInput } from '@/lib/validati
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 
 type AttendeeRow = Tables<'attendees'>
-const DEMO_ORG_ID = 'demo-org-id'
 
 export const attendeeService = {
   async countAllAttendees(eventIds: string[]): Promise<number> {
@@ -39,7 +38,8 @@ export const attendeeService = {
   async registerAttendee(input: RegisterAttendeeInput): Promise<AttendeeRow> {
     const supabase = createAdminClient()
     
-    const event = await eventService.getEventById(input.event_id, DEMO_ORG_ID)
+    // Use getEventByIdUnsafe since webhooks don't have org context
+    const event = await eventService.getEventByIdUnsafe(input.event_id)
     const shouldGenerateToken = event?.enable_check_in
 
     const attendeeData: TablesInsert<'attendees'> = {

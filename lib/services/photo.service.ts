@@ -12,15 +12,12 @@ class PhotoService {
   /** Sube un archivo al bucket de Storage y registra la metadata en la tabla photos. */
   async uploadPhoto(
     eventId: string,
-    file: File
+    file: File,
+    category?: string
   ): Promise<Tables<'photos'>> {
     const targetEventId = (eventId === 'general' || eventId === GENERAL_STUDIO_EVENT_ID)
       ? GENERAL_STUDIO_EVENT_ID
       : eventId
-
-    if (targetEventId === GENERAL_STUDIO_EVENT_ID) {
-      await eventService.ensureGeneralStudioEvent()
-    }
 
     // Validaciones
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -61,13 +58,18 @@ class PhotoService {
     const storageUrl = urlData.publicUrl
 
     // Registrar metadata en la tabla photos
+    const insertData: any = {
+      event_id: targetEventId,
+      storage_url: storageUrl,
+      is_selected: false,
+    }
+    if (category) {
+      insertData.category = category
+    }
+
     const { data, error: insertError } = await supabase
       .from('photos')
-      .insert({
-        event_id: targetEventId,
-        storage_url: storageUrl,
-        is_selected: false,
-      })
+      .insert(insertData)
       .select()
       .single()
 
@@ -126,7 +128,6 @@ class PhotoService {
       const { error: storageError } = await supabase.storage.from(BUCKET).remove(paths)
       if (storageError) {
         console.error('Error limpiando bucket:', storageError.message)
-        // Continuamos para intentar borrar en la tabla de todos modos
       }
     }
 
@@ -139,7 +140,20 @@ class PhotoService {
     if (deleteError) throw new Error(`Error al eliminar filas en base de datos: ${deleteError.message}`)
   }
 
-  /** Actualizar score de IA (preparación para Sprint futuro). */
+  /** Actualizar la carpeta/categoría de múltiples fotos. */
+  async updatePhotoCategories(photoIds: string[], category: string): Promise<void> {
+    if (photoIds.length === 0) return
+    const supabase = createAdminClient()
+
+    const { error } = await supabase
+      .from('photos')
+      .update({ category: category as any })
+      .in('id', photoIds)
+
+    if (error) throw new Error(`Error al mover fotos: ${error.message}`)
+  }
+
+  /** Actualizar score de IA. */
   async updateAiScore(
     photoId: string,
     aiScore: number,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { incidentService } from '@/lib/services/incident.service'
+import { assertIncidentAccess, getAuthUser } from '@/lib/auth/get-user'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -13,10 +14,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { organizationId } = await getAuthUser()
+    if (!organizationId) {
+      return NextResponse.json({ error: 'No tienes una organización asignada' }, { status: 403 })
+    }
+
     const { id } = await params
     const body = await request.json()
-    
-    // Validación de Zod
     const parsed = resolveSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
@@ -25,12 +29,11 @@ export async function PATCH(
       )
     }
 
-    const { resolution_note } = parsed.data
-    const incident = await incidentService.resolveIncident(id, resolution_note)
-    
+    await assertIncidentAccess(id, organizationId)
+    const incident = await incidentService.resolveIncident(id, parsed.data.resolution_note)
     return NextResponse.json({ data: incident }, { status: 200 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error desconocido'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === 'No autenticado' ? 401 : 500 })
   }
 }

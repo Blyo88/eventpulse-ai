@@ -1,4 +1,5 @@
 import { eventService, GENERAL_STUDIO_EVENT_ID } from '@/lib/services/event.service'
+import { getAuthUser } from '@/lib/auth/get-user'
 import type { Tables } from '@/types/supabase'
 import CreateEventModal from './create-event-modal'
 import SpotlightCard from '@/app/components/spotlight-card'
@@ -31,7 +32,6 @@ function EventCard({ event }: { event: Tables<'events'> }) {
   return (
     <Link href={`/dashboard/events/${event.id}`} className="block h-full">
       <SpotlightCard className="neu-card h-full flex flex-col gap-3 cursor-pointer">
-        {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <h3 style={{
             fontFamily: 'var(--font-nunito)',
@@ -48,7 +48,6 @@ function EventCard({ event }: { event: Tables<'events'> }) {
           </span>
         </div>
 
-        {/* Description */}
         {event.description && (
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -56,11 +55,10 @@ function EventCard({ event }: { event: Tables<'events'> }) {
           </p>
         )}
 
-        {/* Meta */}
         <div className="flex flex-col gap-1.5 mt-auto">
           <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                 strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
               <rect x="3" y="4" width="18" height="18" rx="2"/>
               <path d="M16 2v4M8 2v4M3 10h18"/>
             </svg>
@@ -70,7 +68,7 @@ function EventCard({ event }: { event: Tables<'events'> }) {
           {event.location && (
             <div className="flex items-center gap-2" style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                   strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
                 <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
                 <circle cx="12" cy="10" r="3"/>
               </svg>
@@ -81,7 +79,7 @@ function EventCard({ event }: { event: Tables<'events'> }) {
           {event.capacity > 0 && (
             <div className="flex items-center gap-2" style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                   strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                 <circle cx="9" cy="7" r="4"/>
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -91,12 +89,11 @@ function EventCard({ event }: { event: Tables<'events'> }) {
           )}
         </div>
 
-        {/* CTA hint */}
         <div className="flex items-center gap-1 mt-1"
              style={{ color: 'var(--accent)', fontSize: '0.75rem', fontWeight: 700 }}>
-          <span>Ver asistentes</span>
+          <span>Ver detalles</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
             <path d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
         </div>
@@ -111,7 +108,7 @@ function EmptyState() {
       <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
            style={{ boxShadow: 'var(--shadow-soft-inset)', background: 'var(--surface)' }}>
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
-             stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+             stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
           <rect x="3" y="4" width="18" height="18" rx="2"/>
           <path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
         </svg>
@@ -126,16 +123,18 @@ function EmptyState() {
   )
 }
 
-// Provisional DEMO ID
-const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
-
 export default async function EventsPage() {
-  const allEvents = await eventService.getEvents(DEMO_ORG_ID)
-  const events = allEvents.filter(e => e.id !== GENERAL_STUDIO_EVENT_ID)
+  const { organizationId } = await getAuthUser()
+
+  const allEvents = organizationId
+    ? await eventService.getEvents(organizationId)
+    : []
+  const events = allEvents.filter(
+    (event) => event.id !== GENERAL_STUDIO_EVENT_ID && event.title !== 'Estudio Libre General'
+  )
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Page header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.6rem', color: 'var(--text-primary)' }}>
@@ -148,7 +147,6 @@ export default async function EventsPage() {
         <CreateEventModal />
       </div>
 
-      {/* Grid */}
       <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {events.length === 0 ? (
           <EmptyState />

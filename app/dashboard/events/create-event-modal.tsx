@@ -4,8 +4,6 @@ import { useState, useTransition, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 
-const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
-
 export default function CreateEventModal() {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,7 +32,6 @@ export default function CreateEventModal() {
     }
 
     const body = {
-      organization_id: DEMO_ORG_ID,
       title: data.get('title') as string,
       description: (data.get('description') as string) || undefined,
       date: parsedDate,
@@ -50,8 +47,7 @@ export default function CreateEventModal() {
         const res = await fetch('/api/events', {
           method: 'POST',
           headers: { 
-            'Content-Type': 'application/json',
-            'x-organization-id': DEMO_ORG_ID
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(body),
         })

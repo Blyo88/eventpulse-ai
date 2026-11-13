@@ -108,7 +108,7 @@ export default function DashboardSidebar({ userEmail }: SidebarProps) {
       {/* Logo */}
       <Link href="/dashboard" className="neu-card flex items-center gap-3 mb-2" style={{ padding: '16px 20px', textDecoration: 'none' }}>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-             stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+             stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.72">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
         {!isCollapsed && (
@@ -143,7 +143,7 @@ export default function DashboardSidebar({ userEmail }: SidebarProps) {
                   fontFamily: 'var(--font-nunito)',
                 }}
               >
-                <span className="flex items-center justify-center shrink-0 w-6 h-6" style={{ opacity: isActive ? 1 : 0.7, color: isActive ? 'var(--accent)' : 'inherit' }}>
+                <span className="flex items-center justify-center shrink-0 w-6 h-6" style={{ opacity: isActive ? 0.78 : 0.48, color: isActive ? 'var(--accent)' : 'inherit' }}>
                   {item.icon}
                 </span>
                 {!isCollapsed && <motion.span initial={{opacity:0}} animate={{opacity:1}} className="truncate">{item.label}</motion.span>}

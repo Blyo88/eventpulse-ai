@@ -2,6 +2,7 @@ import { eventService } from '@/lib/services/event.service'
 import { attendeeService } from '@/lib/services/attendee.service'
 import { incidentService } from '@/lib/services/incident.service'
 import { photoService } from '@/lib/services/photo.service'
+import { getAuthUser } from '@/lib/auth/get-user'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import AforoChart from './aforo-chart'
@@ -44,17 +45,18 @@ function StatBox({
   )
 }
 
-const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
-
 export default async function EventDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const { organizationId } = await getAuthUser()
+
+  if (!organizationId) notFound()
 
   const [event, attendees, incidents] = await Promise.all([
-    eventService.getEventById(id, DEMO_ORG_ID).catch(() => null),
+    eventService.getEventById(id, organizationId).catch(() => null),
     attendeeService.getAttendeesByEventId(id), // This needs to be org-aware or event-id is enough. The service actually only needs event_id.
     incidentService.getIncidentsByEventId(id),
   ])

@@ -202,7 +202,12 @@ export default function AiStudioClient({ events }: { events: Tables<'events'>[] 
       setPhotos(prev => prev.map(p => selectedIds.has(p.id) ? { ...p, category: targetFolder as any } : p))
       setSelectedIds(new Set())
       
-      // Opcional: si tuviéramos un endpoint PATCH /api/photos, lo llamaríamos aquí. Como usamos Supabase directo en backend para update, podemos invocar un update o endpoint si se desea. Por ahora el estado local actualiza la vista instantáneamente.
+      // Persistir en la base de datos
+      await fetch('/api/photos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: idsArray, category: targetFolder }),
+      })
     } catch (err) {
       console.error('Error al mover fotos:', err)
     }

@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getAuthUser } from '@/lib/auth/get-user'
 import { inviteMemberSchema, InviteMemberInput } from '@/lib/validations/organization'
 import { revalidatePath } from 'next/cache'
 
@@ -9,13 +10,17 @@ export async function inviteMemberAction({
   role, 
   orgId 
 }: InviteMemberInput & { orgId: string }) {
-  // 1. Validar inputs
   const validated = inviteMemberSchema.safeParse({ email, role })
   if (!validated.success) return { success: false, message: 'Datos inválidos' }
 
+  // Never trust the orgId received from a client component.
+  const { organizationId } = await getAuthUser()
+  if (!organizationId || organizationId !== orgId) {
+    return { success: false, message: 'No tienes permisos para gestionar este espacio.' }
+  }
+
   const supabase = createAdminClient()
 
-  // 2. Obtener usuario ID vía RPC
   const { data: userId, error: rpcError } = await (supabase as any)
     .rpc('get_user_id_by_email', { p_email: email })
 
@@ -23,11 +28,10 @@ export async function inviteMemberAction({
     return { success: false, message: 'Usuario no encontrado en la plataforma.' }
   }
 
-  // 3. Insertar miembro
   const { error: insertError } = await supabase
     .from('organization_members')
     .insert({
-      organization_id: orgId,
+      organization_id: organizationId,
       user_id: userId,
       role: role
     })

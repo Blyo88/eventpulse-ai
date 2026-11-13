@@ -17,10 +17,44 @@ export default function WorkspaceContent({ org, members, orgId, userEmail }: any
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null)
 
-  const handlePasswordUpdate = (e: React.FormEvent) => {
+  const [isUpdatingPw, setIsUpdatingPw] = useState(false)
+
+  const handlePasswordUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setPasswordMsg('¡Contraseña actualizada correctamente!')
-    setTimeout(() => setPasswordMsg(null), 3000)
+    setIsUpdatingPw(true)
+    setPasswordMsg(null)
+
+    const formData = new FormData(e.currentTarget)
+    const newPassword = formData.get('newPassword') as string
+    const confirmPassword = formData.get('confirmPassword') as string
+
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordMsg('La contraseña debe tener al menos 6 caracteres')
+      setIsUpdatingPw(false)
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg('Las contraseñas no coinciden')
+      setIsUpdatingPw(false)
+      return
+    }
+
+    try {
+      const { createBrowserClient } = await import('@supabase/ssr')
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      )
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) throw error
+      setPasswordMsg('✅ ¡Contraseña actualizada correctamente!')
+      e.currentTarget.reset()
+    } catch (err: any) {
+      setPasswordMsg(`❌ Error: ${err.message || 'No se pudo actualizar'}`)
+    } finally {
+      setIsUpdatingPw(false)
+      setTimeout(() => setPasswordMsg(null), 5000)
+    }
   }
 
   return (
@@ -148,7 +182,7 @@ export default function WorkspaceContent({ org, members, orgId, userEmail }: any
               </h3>
 
               {passwordMsg && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
+                <div className={`p-3 rounded-xl text-xs ${passwordMsg.startsWith('✅') ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border border-red-500/20 text-red-400'}`}>
                   {passwordMsg}
                 </div>
               )}
@@ -157,16 +191,32 @@ export default function WorkspaceContent({ org, members, orgId, userEmail }: any
                 <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                   Nueva Contraseña
                 </label>
-                <input 
-                  type="password" 
-                  placeholder="••••••••••••" 
-                  className="neu-input px-4 py-3 rounded-xl w-full outline-none" 
-                  required 
+                <input
+                  type="password"
+                  name="newPassword"
+                  placeholder="Mínimo 6 caracteres"
+                  className="neu-input px-4 py-3 rounded-xl w-full outline-none"
+                  required
+                  minLength={6}
                 />
               </div>
 
-              <button type="submit" className="neu-btn-primary py-3 rounded-xl font-bold mt-2">
-                Guardar Cambios
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                  Confirmar Contraseña
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  placeholder="Repite la contraseña"
+                  className="neu-input px-4 py-3 rounded-xl w-full outline-none"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <button type="submit" className="neu-btn-primary py-3 rounded-xl font-bold mt-2" disabled={isUpdatingPw}>
+                {isUpdatingPw ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </form>
           </SpotlightCard>

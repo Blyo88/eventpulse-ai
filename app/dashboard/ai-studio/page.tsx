@@ -1,19 +1,21 @@
 import { eventService, GENERAL_STUDIO_EVENT_ID } from '@/lib/services/event.service'
-import { photoService } from '@/lib/services/photo.service'
+import { getAuthUser } from '@/lib/auth/get-user'
 import AiStudioClient from './ai-studio-client'
-import type { Tables } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic'
 
-const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000000'
-
 export default async function AiStudioPage() {
-  const allEvents = await eventService.getEvents(DEMO_ORG_ID)
-  const events = allEvents.filter(e => e.id !== GENERAL_STUDIO_EVENT_ID)
+  const { organizationId } = await getAuthUser()
+
+  const allEvents = organizationId
+    ? await eventService.getEvents(organizationId)
+    : []
+  const events = allEvents.filter(
+    (event) => event.id !== GENERAL_STUDIO_EVENT_ID && event.title !== 'Estudio Libre General'
+  )
 
   return (
     <div className="flex flex-col gap-6 max-w-6xl">
-      {/* Page header */}
       <div>
         <h1 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.6rem', color: 'var(--text-primary)' }}>
           Estudio IA
@@ -23,7 +25,6 @@ export default async function AiStudioPage() {
         </p>
       </div>
 
-      {/* Studio */}
       <AiStudioClient events={events} />
     </div>
   )

@@ -6,22 +6,18 @@ import type { Database, EventStatus, Tables, TablesInsert, TablesUpdate } from '
 
 type EventRow = Tables<'events'>
 
-/**
- * Identificador del usuario demo.
- *
- * Sustituye a `auth.getUser()` hasta que exista la fase de autenticación.
- */
-
 export const GENERAL_STUDIO_EVENT_ID = '00000000-0000-0000-0000-000000000001'
 
 export const eventService = {
-  async ensureGeneralStudioEvent(organizationId: string = '00000000-0000-0000-0000-000000000000'): Promise<EventRow> {
+  async ensureGeneralStudioEvent(organizationId: string, userId: string): Promise<EventRow> {
     const supabase = createAdminClient()
 
+    // El estudio libre es uno por organización, no uno global para todos los usuarios.
     const { data: existing } = await supabase
       .from('events')
       .select('*')
-      .eq('id', GENERAL_STUDIO_EVENT_ID)
+      .eq('organization_id', organizationId)
+      .eq('title', 'Estudio Libre General')
       .maybeSingle()
 
     if (existing) return existing
@@ -29,8 +25,7 @@ export const eventService = {
     const { data, error } = await supabase
       .from('events')
       .insert({
-        id: GENERAL_STUDIO_EVENT_ID,
-        user_id: '00000000-0000-0000-0000-000000000001',
+        user_id: userId,
         organization_id: organizationId,
         title: 'Estudio Libre General',
         description: 'Espacio de creación y análisis independiente con IA',
@@ -45,7 +40,12 @@ export const eventService = {
       .single()
 
     if (error) {
-      const { data: retry } = await supabase.from('events').select('*').eq('id', GENERAL_STUDIO_EVENT_ID).maybeSingle()
+      const { data: retry } = await supabase
+        .from('events')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('title', 'Estudio Libre General')
+        .maybeSingle()
       if (retry) return retry
       throw new Error(`Failed to ensure general studio event: ${error.message}`)
     }
@@ -53,11 +53,11 @@ export const eventService = {
     return data
   },
 
-  async createEvent(input: CreateEventInput, organizationId: string): Promise<EventRow> {
+  async createEvent(input: CreateEventInput, organizationId: string, userId: string): Promise<EventRow> {
     const supabase = createAdminClient()
 
     const eventData = {
-      user_id: '00000000-0000-0000-0000-000000000001',
+      user_id: userId,
       organization_id: organizationId,
       title: input.title,
       description: input.description ?? null,
@@ -107,6 +107,23 @@ export const eventService = {
       .select('*')
       .eq('id', eventId)
       .eq('organization_id', organizationId)
+      .single()
+
+    if (error) {
+      throw new Error(`Failed to fetch event: ${error.message}`)
+    }
+
+    return data
+  },
+
+  /** Get event by ID without org check (for attendee registration via webhook) */
+  async getEventByIdUnsafe(eventId: string): Promise<EventRow> {
+    const supabase = createAdminClient()
+
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('id', eventId)
       .single()
 
     if (error) {
