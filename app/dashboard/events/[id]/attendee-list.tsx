@@ -162,47 +162,105 @@ export default function AttendeeList({ eventId, attendees }: AttendeeListProps) 
               exit={{ opacity: 0 }}
               onClick={() => setModal(null)}
               className="fixed inset-0 z-40"
-              style={{ background: 'rgba(74, 85, 104, 0.25)', backdropFilter: 'blur(4px)' }}
+              style={{ background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)' }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
-              className="fixed inset-0 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto"
             >
-              <div className="neu-card w-full max-w-md" style={{ padding: '32px' }}>
-                <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '1.125rem', color: 'var(--text-primary)', marginBottom: 16 }}>
-                  Vincular Formulario Externo
-                </h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: 16, lineHeight: 1.5 }}>
-                  Usa esta URL en tu formulario externo para registrar automáticamente asistentes en este evento:
-                </p>
+              <div className="neu-card w-full max-w-lg my-auto flex flex-col gap-5"
+                   style={{ padding: '28px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', maxHeight: '90vh', overflowY: 'auto' }}>
 
-                <div className="flex gap-2 mb-6">
-                  <input
-                    type="text"
-                    value={webhookUrl}
-                    readOnly
-                    className="neu-input flex-1"
-                    style={{ fontSize: '0.75rem' }}
-                  />
-                  <button
-                    onClick={copyWebhook}
-                    className="neu-btn-primary"
-                    style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}
-                  >
-                    {copied ? '✓ Copiado' : 'Copiar'}
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+                      Vincular Formulario Externo
+                    </h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: 2 }}>
+                      Conecta Google Forms, Typeform u otro formulario para registrar asistentes automáticamente.
+                    </p>
+                  </div>
+                  <button onClick={() => setModal(null)} className="neu-btn" style={{ padding: '6px 10px' }} aria-label="Cerrar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                      <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
                   </button>
                 </div>
 
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginBottom: 16, fontStyle: 'italic' }}>
-                  POST payload esperado: <code>{'{ full_name, email, event_id }'}</code>
+                {/* Datos clave */}
+                <div className="flex flex-col gap-3 p-4 rounded-2xl" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-soft-inset)' }}>
+                  <p style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                    1. URL del Webhook — pégala en Zapier o Make
+                  </p>
+                  <div className="flex gap-2 items-center flex-wrap">
+                    <code className="flex-1 text-xs break-all" style={{ color: 'var(--accent)', fontFamily: 'monospace' }}>{webhookUrl}</code>
+                    <button onClick={copyWebhook} className="neu-btn shrink-0" style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap', color: copied ? '#10b981' : undefined }}>
+                      {copied ? '✓ Copiado' : 'Copiar URL'}
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>
+                    2. ID de este evento — inclúyelo como campo oculto en el formulario
+                  </p>
+                  <div className="flex gap-2 items-center flex-wrap">
+                    <code className="flex-1 text-xs break-all" style={{ color: '#f59e0b', fontFamily: 'monospace' }}>{eventId}</code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(eventId) }}
+                      className="neu-btn shrink-0"
+                      style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
+                    >
+                      Copiar ID
+                    </button>
+                  </div>
+                </div>
+
+                {/* Instrucciones paso a paso */}
+                <div className="flex flex-col gap-4">
+                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>📋 Cómo conectarlo con Google Forms + Zapier:</p>
+
+                  {[
+                    {
+                      n: 1,
+                      title: 'Crea tu Google Form',
+                      body: 'Ve a forms.google.com. Añade dos preguntas obligatorias: "Nombre completo" (respuesta corta) y "Correo electrónico".',
+                    },
+                    {
+                      n: 2,
+                      title: 'Entra a Zapier y crea un Zap',
+                      body: 'Trigger: Google Forms → "New Form Response". Selecciona el formulario que creaste. Action: Webhooks by Zapier → "POST".',
+                    },
+                    {
+                      n: 3,
+                      title: 'Configura el POST en Zapier',
+                      body: `URL: la de arriba. Payload (JSON): { "event_id": "<ID del evento>", "full_name": {{campo nombre}}, "email": {{campo email}} }`,
+                    },
+                    {
+                      n: 4,
+                      title: 'Prueba y activa el Zap',
+                      body: 'Envía una respuesta de prueba en el formulario. Verifica que aparezca en la lista de Asistentes. Luego activa el Zap.',
+                    },
+                  ].map(step => (
+                    <div key={step.n} className="flex gap-3">
+                      <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5"
+                           style={{ background: 'rgba(99,102,241,0.18)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.25)' }}>
+                        {step.n}
+                      </div>
+                      <div>
+                        <p className="font-bold text-xs mb-1" style={{ color: 'var(--text-primary)' }}>{step.title}</p>
+                        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>{step.body}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Nota Make */}
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 12, lineHeight: 1.6 }}>
+                  ¿Usas <strong style={{ color: 'var(--text-primary)' }}>Make (Integromat)</strong>? El proceso es igual: Google Forms → HTTP → Make a request (POST) con la misma URL y los campos <code style={{ color: 'var(--accent)' }}>event_id</code>, <code style={{ color: 'var(--accent)' }}>full_name</code> y <code style={{ color: 'var(--accent)' }}>email</code>.
                 </p>
 
-                <button
-                  onClick={() => setModal(null)}
-                  className="neu-btn w-full justify-center"
-                >
+                <button onClick={() => setModal(null)} className="neu-btn w-full justify-center">
                   Cerrar
                 </button>
               </div>
