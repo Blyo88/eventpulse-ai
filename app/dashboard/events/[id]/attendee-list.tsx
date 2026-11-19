@@ -11,21 +11,157 @@ interface AttendeeListProps {
 }
 
 type ModalType = 'webhook' | 'manual' | null
+type WebhookTab = 'apps-script' | 'zapier' | 'make'
 
+// ── Reutilizable: copia con feedback visual por key ──────────────────────────
+function useCopy() {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const copy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(null), 2000)
+  }
+  return { copiedKey, copy }
+}
+
+// ── Bloque de código copiable ─────────────────────────────────────────────────
+function CodeBlock({
+  label, value, copyKey, copiedKey, onCopy, color = '#a5b4fc',
+}: {
+  label: string
+  value: string
+  copyKey: string
+  copiedKey: string | null
+  onCopy: (text: string, key: string) => void
+  color?: string
+}) {
+  const isCopied = copiedKey === copyKey
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span style={{ fontSize: '0.67rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          {label}
+        </span>
+        <button
+          type="button"
+          onClick={() => onCopy(value, copyKey)}
+          style={{
+            fontSize: '0.7rem', fontWeight: 700, padding: '3px 10px',
+            borderRadius: '8px', border: 'none', cursor: 'pointer',
+            background: isCopied ? 'rgba(16,185,129,0.15)' : 'rgba(99,102,241,0.15)',
+            color: isCopied ? '#10b981' : '#a5b4fc',
+            transition: 'all 0.2s',
+          }}
+        >
+          {isCopied ? '✓ Copiado' : 'Copiar'}
+        </button>
+      </div>
+      <div style={{
+        background: 'var(--surface)', boxShadow: 'var(--shadow-soft-inset)',
+        borderRadius: '12px', padding: '10px 14px', overflowX: 'auto',
+      }}>
+        <pre style={{ margin: 0, fontSize: '0.71rem', color, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.65 }}>
+          {value}
+        </pre>
+      </div>
+    </div>
+  )
+}
+
+// ── Pestaña interna del modal ─────────────────────────────────────────────────
+function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: '5px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
+        fontSize: '0.75rem', fontWeight: 700, transition: 'all 0.18s',
+        background: active ? 'var(--accent)' : 'transparent',
+        color: active ? '#fff' : 'var(--text-muted)',
+        boxShadow: active ? '0 0 10px rgba(155,114,207,0.35)' : 'none',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
 export default function AttendeeList({ eventId, attendees }: AttendeeListProps) {
   const [modal, setModal] = useState<ModalType>(null)
-  const [copied, setCopied] = useState(false)
+  const [webhookTab, setWebhookTab] = useState<WebhookTab>('apps-script')
   const [isPending, startTransition] = useTransition()
   const [formData, setFormData] = useState({ full_name: '', email: '' })
   const router = useRouter()
+  const { copiedKey, copy } = useCopy()
 
-  const webhookUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/forms`
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://tu-dominio.vercel.app'
+  const webhookUrl = `${origin}/api/webhooks/forms`
 
-  const copyWebhook = () => {
-    navigator.clipboard.writeText(webhookUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+  // Snippets precargados con los valores reales del evento
+  const jsonPayload = `{
+  "event_id":  "${eventId}",
+  "full_name": "Nombre Apellido",
+  "email":     "correo@ejemplo.com"
+}`
+
+  const appsScript = `// 1. Abre tu Google Form → Extensiones → Apps Script
+// 2. Borra todo, pega este código y guarda (Ctrl+S)
+// 3. Ejecuta la función "configurar" una sola vez para instalar el trigger
+// 4. ¡Listo! Cada respuesta nueva enviará los datos a EventPulse.
+
+const WEBHOOK_URL = "${webhookUrl}";
+const EVENT_ID    = "${eventId}";
+
+function onFormSubmit(e) {
+  const responses = e.response.getItemResponses();
+  const get = (keyword) => {
+    const found = responses.find(r =>
+      r.getItem().getTitle().toLowerCase().includes(keyword)
+    );
+    return found ? found.getResponse() : "";
+  };
+
+  UrlFetchApp.fetch(WEBHOOK_URL, {
+    method      : "post",
+    contentType : "application/json",
+    payload     : JSON.stringify({
+      event_id  : EVENT_ID,
+      full_name : get("nombre"),
+      email     : get("correo") || get("email"),
+    }),
+  });
+}
+
+function configurar() {
+  const form = FormApp.getActiveForm();
+  ScriptApp.newTrigger("onFormSubmit")
+    .forForm(form)
+    .onFormSubmit()
+    .create();
+  Logger.log("Trigger instalado en: " + form.getTitle());
+}`
+
+  const zapierSteps = `Trigger : Google Forms → New Form Response
+Action  : Webhooks by Zapier → POST
+
+URL     : ${webhookUrl}
+Payload :
+  event_id  = ${eventId}   ← valor fijo
+  full_name = {{Nombre completo}}   ← campo del form
+  email     = {{Correo electrónico}} ← campo del form`
+
+  const makePayload = `// Make → módulo "HTTP › Make a request"
+// Method: POST   Content-Type: application/json
+
+{
+  "event_id"  : "${eventId}",
+  "full_name" : "{{1.responses[0].value}}",
+  "email"     : "{{1.responses[1].value}}"
+}
+
+// Ajusta los índices [0], [1] al orden de tus preguntas en el form.`
 
   const handleAddManual = (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,21 +241,15 @@ export default function AttendeeList({ eventId, attendees }: AttendeeListProps) 
               <div
                 key={attendee.id}
                 className="flex items-center justify-between gap-4 px-4 py-3 rounded-2xl"
-                style={{
-                  background: 'var(--surface)',
-                  boxShadow: 'var(--shadow-soft-flat)',
-                }}
+                style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-soft-flat)' }}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
                     className="shrink-0 flex items-center justify-center rounded-full w-9 h-9"
                     style={{
-                      background: 'var(--surface)',
-                      boxShadow: 'var(--shadow-soft-raised)',
-                      color: 'var(--accent)',
-                      fontFamily: 'var(--font-nunito)',
-                      fontWeight: 700,
-                      fontSize: '0.875rem',
+                      background: 'var(--surface)', boxShadow: 'var(--shadow-soft-raised)',
+                      color: 'var(--accent)', fontFamily: 'var(--font-nunito)',
+                      fontWeight: 700, fontSize: '0.875rem',
                     }}
                   >
                     {attendee.full_name.charAt(0).toUpperCase()}
@@ -152,113 +282,140 @@ export default function AttendeeList({ eventId, attendees }: AttendeeListProps) 
         </div>
       )}
 
-      {/* Modal: Webhook */}
+      {/* ── Modal: Vincular Formulario ────────────────────────────────────────── */}
       <AnimatePresence>
         {modal === 'webhook' && (
           <>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setModal(null)}
               className="fixed inset-0 z-40"
-              style={{ background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)' }}
+              style={{ background: 'rgba(15,23,42,0.78)', backdropFilter: 'blur(8px)' }}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              initial={{ opacity: 0, scale: 0.95, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              exit={{ opacity: 0, scale: 0.95, y: 14 }}
+              transition={{ duration: 0.24, ease: [0.34, 1.56, 0.64, 1] }}
               className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto"
             >
-              <div className="neu-card w-full max-w-lg my-auto flex flex-col gap-5"
-                   style={{ padding: '28px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', maxHeight: '90vh', overflowY: 'auto' }}>
-
+              <div
+                className="neu-card w-full max-w-lg my-auto flex flex-col gap-5"
+                style={{
+                  padding: '26px', borderRadius: '24px',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  maxHeight: '92vh', overflowY: 'auto',
+                }}
+              >
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
-                      Vincular Formulario Externo
+                    <h2 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+                      Vincular formulario externo
                     </h2>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: 2 }}>
-                      Conecta Google Forms, Typeform u otro formulario para registrar asistentes automáticamente.
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                      Cada respuesta del formulario registrará un asistente automáticamente en este evento.
                     </p>
                   </div>
-                  <button onClick={() => setModal(null)} className="neu-btn" style={{ padding: '6px 10px' }} aria-label="Cerrar">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <button onClick={() => setModal(null)} className="neu-btn shrink-0" style={{ padding: '6px 10px' }} aria-label="Cerrar">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                       <path d="M18 6L6 18M6 6l12 12"/>
                     </svg>
                   </button>
                 </div>
 
-                {/* Datos clave */}
-                <div className="flex flex-col gap-3 p-4 rounded-2xl" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-soft-inset)' }}>
-                  <p style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                    1. URL del Webhook — pégala en Zapier o Make
-                  </p>
-                  <div className="flex gap-2 items-center flex-wrap">
-                    <code className="flex-1 text-xs break-all" style={{ color: 'var(--accent)', fontFamily: 'monospace' }}>{webhookUrl}</code>
-                    <button onClick={copyWebhook} className="neu-btn shrink-0" style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap', color: copied ? '#10b981' : undefined }}>
-                      {copied ? '✓ Copiado' : 'Copiar URL'}
-                    </button>
-                  </div>
-                  <p style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>
-                    2. ID de este evento — inclúyelo como campo oculto en el formulario
-                  </p>
-                  <div className="flex gap-2 items-center flex-wrap">
-                    <code className="flex-1 text-xs break-all" style={{ color: '#f59e0b', fontFamily: 'monospace' }}>{eventId}</code>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(eventId) }}
-                      className="neu-btn shrink-0"
-                      style={{ fontSize: '0.75rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
-                    >
-                      Copiar ID
-                    </button>
-                  </div>
+                {/* URL del webhook + ID del evento — siempre visibles */}
+                <div className="flex flex-col gap-3">
+                  <CodeBlock
+                    label="URL del Webhook"
+                    value={webhookUrl}
+                    copyKey="url"
+                    copiedKey={copiedKey}
+                    onCopy={copy}
+                  />
+                  <CodeBlock
+                    label="ID de este evento (ya incluido en los snippets)"
+                    value={eventId}
+                    copyKey="id"
+                    copiedKey={copiedKey}
+                    onCopy={copy}
+                    color="#f59e0b"
+                  />
                 </div>
 
-                {/* Instrucciones paso a paso */}
-                <div className="flex flex-col gap-4">
-                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>📋 Cómo conectarlo con Google Forms + Zapier:</p>
+                {/* Pestañas de integración */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-1 p-1 rounded-2xl" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-soft-inset)' }}>
+                    <TabBtn active={webhookTab === 'apps-script'} onClick={() => setWebhookTab('apps-script')}>
+                      Apps Script
+                    </TabBtn>
+                    <TabBtn active={webhookTab === 'zapier'} onClick={() => setWebhookTab('zapier')}>
+                      Zapier
+                    </TabBtn>
+                    <TabBtn active={webhookTab === 'make'} onClick={() => setWebhookTab('make')}>
+                      Make
+                    </TabBtn>
+                  </div>
 
-                  {[
-                    {
-                      n: 1,
-                      title: 'Crea tu Google Form',
-                      body: 'Ve a forms.google.com. Añade dos preguntas obligatorias: "Nombre completo" (respuesta corta) y "Correo electrónico".',
-                    },
-                    {
-                      n: 2,
-                      title: 'Entra a Zapier y crea un Zap',
-                      body: 'Trigger: Google Forms → "New Form Response". Selecciona el formulario que creaste. Action: Webhooks by Zapier → "POST".',
-                    },
-                    {
-                      n: 3,
-                      title: 'Configura el POST en Zapier',
-                      body: `URL: la de arriba. Payload (JSON): { "event_id": "<ID del evento>", "full_name": {{campo nombre}}, "email": {{campo email}} }`,
-                    },
-                    {
-                      n: 4,
-                      title: 'Prueba y activa el Zap',
-                      body: 'Envía una respuesta de prueba en el formulario. Verifica que aparezca en la lista de Asistentes. Luego activa el Zap.',
-                    },
-                  ].map(step => (
-                    <div key={step.n} className="flex gap-3">
-                      <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5"
-                           style={{ background: 'rgba(99,102,241,0.18)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.25)' }}>
-                        {step.n}
-                      </div>
-                      <div>
-                        <p className="font-bold text-xs mb-1" style={{ color: 'var(--text-primary)' }}>{step.title}</p>
-                        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>{step.body}</p>
-                      </div>
+                  {webhookTab === 'apps-script' && (
+                    <div className="flex flex-col gap-3">
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                        La opción más directa: sin servicios externos. Ve a tu Google Form →{' '}
+                        <strong style={{ color: 'var(--text-primary)' }}>Extensiones → Apps Script</strong>,
+                        pega el código y ejecuta <code style={{ color: 'var(--accent)' }}>configurar</code> una vez.
+                      </p>
+                      <CodeBlock
+                        label="Google Apps Script — listo para pegar"
+                        value={appsScript}
+                        copyKey="apps-script"
+                        copiedKey={copiedKey}
+                        onCopy={copy}
+                        color="#86efac"
+                      />
                     </div>
-                  ))}
-                </div>
+                  )}
 
-                {/* Nota Make */}
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 12, lineHeight: 1.6 }}>
-                  ¿Usas <strong style={{ color: 'var(--text-primary)' }}>Make (Integromat)</strong>? El proceso es igual: Google Forms → HTTP → Make a request (POST) con la misma URL y los campos <code style={{ color: 'var(--accent)' }}>event_id</code>, <code style={{ color: 'var(--accent)' }}>full_name</code> y <code style={{ color: 'var(--accent)' }}>email</code>.
-                </p>
+                  {webhookTab === 'zapier' && (
+                    <div className="flex flex-col gap-3">
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                        En <strong style={{ color: 'var(--text-primary)' }}>zapier.com</strong> crea un Zap con el
+                        trigger de Google Forms y la acción <em>Webhooks by Zapier → POST</em>. Usa los valores de abajo:
+                      </p>
+                      <CodeBlock
+                        label="Configuración del Zap"
+                        value={zapierSteps}
+                        copyKey="zapier"
+                        copiedKey={copiedKey}
+                        onCopy={copy}
+                        color="#fde68a"
+                      />
+                      <CodeBlock
+                        label="Payload JSON de ejemplo"
+                        value={jsonPayload}
+                        copyKey="json"
+                        copiedKey={copiedKey}
+                        onCopy={copy}
+                      />
+                    </div>
+                  )}
+
+                  {webhookTab === 'make' && (
+                    <div className="flex flex-col gap-3">
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                        En <strong style={{ color: 'var(--text-primary)' }}>make.com</strong> crea un escenario:
+                        Google Forms → HTTP › Make a request (POST). Usa el JSON de abajo como body:
+                      </p>
+                      <CodeBlock
+                        label="Payload para Make"
+                        value={makePayload}
+                        copyKey="make"
+                        copiedKey={copiedKey}
+                        onCopy={copy}
+                        color="#a5b4fc"
+                      />
+                    </div>
+                  )}
+                </div>
 
                 <button onClick={() => setModal(null)} className="neu-btn w-full justify-center">
                   Cerrar
@@ -269,17 +426,15 @@ export default function AttendeeList({ eventId, attendees }: AttendeeListProps) 
         )}
       </AnimatePresence>
 
-      {/* Modal: Añadir Manual */}
+      {/* ── Modal: Añadir Manual ──────────────────────────────────────────────── */}
       <AnimatePresence>
         {modal === 'manual' && (
           <>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setModal(null)}
               className="fixed inset-0 z-40"
-              style={{ background: 'rgba(74, 85, 104, 0.25)', backdropFilter: 'blur(4px)' }}
+              style={{ background: 'rgba(74,85,104,0.25)', backdropFilter: 'blur(4px)' }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
@@ -298,8 +453,7 @@ export default function AttendeeList({ eventId, attendees }: AttendeeListProps) 
                       Nombre completo
                     </label>
                     <input
-                      type="text"
-                      required
+                      type="text" required
                       value={formData.full_name}
                       onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                       placeholder="Ej. Juan Pérez"
@@ -312,8 +466,7 @@ export default function AttendeeList({ eventId, attendees }: AttendeeListProps) 
                       Email
                     </label>
                     <input
-                      type="email"
-                      required
+                      type="email" required
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       placeholder="correo@ejemplo.com"
@@ -322,16 +475,11 @@ export default function AttendeeList({ eventId, attendees }: AttendeeListProps) 
                   </div>
 
                   <div className="flex gap-3 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setModal(null)}
-                      className="neu-btn flex-1 justify-center"
-                    >
+                    <button type="button" onClick={() => setModal(null)} className="neu-btn flex-1 justify-center">
                       Cancelar
                     </button>
                     <button
-                      type="submit"
-                      disabled={isPending}
+                      type="submit" disabled={isPending}
                       className="neu-btn-primary flex-1 justify-center"
                       style={{ opacity: isPending ? 0.7 : 1 }}
                     >
