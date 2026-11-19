@@ -6,9 +6,15 @@ import { ZodError } from 'zod'
 
 export async function POST(request: NextRequest) {
   try {
+    // getAuthUser ya auto-crea org si el usuario no tiene una
     const { userId, organizationId } = await getAuthUser()
+
     if (!organizationId) {
-      return NextResponse.json({ error: 'No tienes una organización asignada' }, { status: 403 })
+      // Situación extrema: no se pudo crear org (ej. problemas de DB)
+      return NextResponse.json(
+        { error: 'No se pudo inicializar tu espacio de trabajo. Recarga la página e intenta de nuevo.' },
+        { status: 503 }
+      )
     }
 
     const body = await request.json()

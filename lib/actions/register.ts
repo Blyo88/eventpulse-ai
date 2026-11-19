@@ -50,22 +50,16 @@ export async function registerAction(
     return { error: error.message }
   }
 
-  // Auto-crear organización personal y membership para el nuevo usuario
+  // Crear organización personal y membership para el nuevo usuario
   if (signUpData.user) {
+    const admin = createAdminClient()
+    const userId = signUpData.user.id
+    const email = parsed.data.email
+    // Nombre de org derivado del email, limpio y legible
+    const localPart = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim()
+    const orgName = localPart.charAt(0).toUpperCase() + localPart.slice(1) + ' Workspace'
+
     try {
-      const admin = createAdminClient()
-      const userId = signUpData.user.id
-      const email = parsed.data.email
-      const orgName = email.split('@')[0] + ' Workspace'
-
-      // Crear perfil público si no existe
-      await admin
-        .from('profiles')
-        .upsert({
-          id: userId,
-          email: email,
-        }, { onConflict: 'id' })
-
       // Crear organización personal
       const { data: org, error: orgError } = await admin
         .from('organizations')
@@ -75,17 +69,27 @@ export async function registerAction(
 
       if (org && !orgError) {
         // Crear membership como owner
-        await admin
-          .from('organization_members')
-          .insert({
-            organization_id: org.id,
-            user_id: userId,
-            role: 'owner',
-          })
+        await admin.from('organization_members').insert({
+          organization_id: org.id,
+          user_id: userId,
+          role: 'owner',
+        })
+
+        // Crear perfil si la tabla existe
+        try {
+          await admin.from('profiles').upsert(
+            { id: userId, email },
+            { onConflict: 'id' }
+          )
+        } catch {
+          // La tabla profiles puede no existir aún, no es bloqueante
+        }
+      } else {
+        console.error('Error creando organización para nuevo usuario:', orgError?.message)
       }
     } catch (err) {
-      // No bloquear el registro si falla la creación de org
-      console.error('Error creando organización para nuevo usuario:', err)
+      // Nunca bloquear el registro si esto falla — getAuthUser lo recupera al primer login
+      console.error('Error en setup post-registro:', err)
     }
   }
 
