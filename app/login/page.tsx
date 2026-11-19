@@ -199,12 +199,19 @@ export default function LoginPage() {
             type="button"
             onClick={handleGuestClick}
             disabled={pending || isGuestPending}
-            className="neu-btn w-full justify-center"
+            className="w-full flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200"
             style={{
               opacity: isGuestPending ? 0.7 : 1,
-              color: 'var(--text-secondary)',
               fontSize: '0.875rem',
+              padding: '11px 20px',
+              background: 'rgba(99,102,241,0.12)',
+              border: '1px solid rgba(99,102,241,0.3)',
+              color: '#a5b4fc',
+              cursor: 'pointer',
+              boxShadow: '0 0 0 0 rgba(99,102,241,0)',
             }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.12)')}
           >
             {isGuestPending ? (
               <>
@@ -220,13 +227,10 @@ export default function LoginPage() {
               <>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                  <path d="M10 17l5-5-5-5"/>
-                  <path d="M15 12H3"/>
-                  <path d="M3 8V6a2 2 0 0 1 2-2h2"/>
-                  <path d="M3 16v2a2 2 0 0 0 2 2h2"/>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
                 </svg>
-                Entrar sin sesión (Demo)
+                Explorar sin cuenta (Demo)
               </>
             )}
           </button>
