@@ -28,16 +28,39 @@ export const organizationService = {
     if (!members || members.length === 0) return []
 
     const userIds = members.map(m => m.user_id)
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, email, full_name')
-      .in('id', userIds)
 
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || [])
+    // Intentar obtener perfiles desde la tabla profiles (puede no existir aún)
+    let profileMap = new Map<string, { email: string; full_name: string | null }>()
+    try {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, full_name')
+        .in('id', userIds)
+      if (profiles) {
+        profileMap = new Map(profiles.map(p => [p.id, p]))
+      }
+    } catch {
+      // tabla profiles no existe todavía — fallback a auth.users
+    }
+
+    // Para los usuarios sin perfil en la tabla, buscar email en auth.users
+    const missingIds = userIds.filter(id => !profileMap.has(id))
+    if (missingIds.length > 0) {
+      try {
+        const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1000 })
+        for (const u of users) {
+          if (missingIds.includes(u.id) && u.email) {
+            profileMap.set(u.id, { email: u.email, full_name: u.user_metadata?.full_name ?? null })
+          }
+        }
+      } catch {
+        // sin acceso a auth.users — usar fallback genérico
+      }
+    }
 
     return members.map(m => ({
       ...m,
-      profile: profileMap.get(m.user_id) || { email: 'usuario@sistema.local', full_name: null }
+      profile: profileMap.get(m.user_id) ?? { email: 'Sin email', full_name: null }
     }))
   },
 
