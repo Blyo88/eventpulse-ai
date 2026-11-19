@@ -102,7 +102,7 @@ export default async function EventDetailPage({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
             <StatBox
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
               label="Fecha"
@@ -118,7 +118,7 @@ export default async function EventDetailPage({
             <StatBox
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>}
               label="Inscritos"
-              value={`${total} ${event.capacity > 0 ? `/ ${event.capacity}` : ''}`}
+              value={`${total}${event.capacity > 0 ? ` / ${event.capacity}` : ''}`}
             />
             <StatBox
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>}
@@ -148,7 +148,7 @@ export default async function EventDetailPage({
         </div>
 
         {/* Gráfico Recharts */}
-        <div className="neu-card flex flex-col justify-center items-center">
+        <div className="neu-card flex flex-col justify-center items-center" style={{ minHeight: '240px' }}>
           <p style={{ fontFamily: 'var(--font-nunito)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 8, textAlign: 'center' }}>
             Estado de asistencia
           </p>

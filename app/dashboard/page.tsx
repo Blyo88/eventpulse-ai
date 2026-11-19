@@ -1,4 +1,4 @@
-import { eventService } from '@/lib/services/event.service'
+import { eventService, GENERAL_STUDIO_EVENT_ID } from '@/lib/services/event.service'
 import { incidentService } from '@/lib/services/incident.service'
 import { attendeeService } from '@/lib/services/attendee.service'
 import { getAuthUser } from '@/lib/auth/get-user'
@@ -15,8 +15,14 @@ export default async function DashboardIndex() {
   const events = organizationId
     ? await eventService.getEvents(organizationId)
     : []
-  
-  const eventIds = events.map(e => e.id)
+
+  // Mismo criterio de filtrado que la vista /dashboard/events:
+  // excluir el evento especial "Estudio Libre General" del Estudio IA
+  const visibleEvents = events.filter(
+    (e) => e.id !== GENERAL_STUDIO_EVENT_ID && e.title !== 'Estudio Libre General'
+  )
+
+  const eventIds = visibleEvents.map(e => e.id)
   
   const [incidents, totalAttendees] = await Promise.all([
     incidentService.getAllIncidents(eventIds),
@@ -62,7 +68,7 @@ export default async function DashboardIndex() {
             </p>
           </div>
           <p style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '2.5rem', color: 'var(--text-primary)', lineHeight: 1 }}>
-            {events.length}
+            {visibleEvents.length}
           </p>
         </SpotlightCard>
 

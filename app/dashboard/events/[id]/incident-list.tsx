@@ -1,9 +1,6 @@
 'use client'
 
 import type { Tables } from '@/types/supabase'
-import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
-
 import ResolveIncidentModal from '../../incidents/resolve-modal'
 
 const SEVERITY_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
@@ -61,6 +58,7 @@ export default function IncidentList({
             className="neu-card flex flex-col gap-3 transition-opacity duration-300"
             style={{ opacity: incident.resolved ? 0.75 : 1 }}
           >
+            {/* Badges de severidad y categoría */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="neu-badge" style={{ background: severity.bgColor, color: severity.color }}>
                 {severity.label}
@@ -73,44 +71,21 @@ export default function IncidentList({
                   ✓ Resuelto
                 </span>
               ) : (
-                <>
-                  <span className="neu-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
-                    ⏳ Pendiente
-                  </span>
-                  <ResolveIncidentModal
-                    incidentId={incident.id}
-                    trigger={
-                      <button 
-                        className="neu-btn text-xs px-3 py-1 spring-interactive" 
-                        style={{ 
-                          minHeight: '28px', 
-                          fontSize: '0.75rem',
-                          background: 'var(--glass-bg)',
-                          backdropFilter: 'blur(8px)',
-                          border: '1px solid var(--glass-border)',
-                          color: 'var(--text-secondary)'
-                        }}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 12l2 2 4-4"/>
-                          <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.68.94 6.36 2.64"/>
-                        </svg>
-                        Resolver
-                      </button>
-                    }
-                  />
-                </>
+                <span className="neu-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                  ⏳ Pendiente
+                </span>
               )}
             </div>
-            
+
+            {/* Descripción */}
             <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
               {incident.description}
             </p>
 
-            {/* Resolución Note */}
+            {/* Nota de resolución */}
             {incident.resolved && incident.resolution_note && (
               <div 
-                className="mt-2 p-3 rounded-xl"
+                className="p-3 rounded-xl"
                 style={{ background: 'var(--surface-deep)', boxShadow: 'var(--shadow-soft-inset)' }}
               >
                 <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
@@ -122,13 +97,38 @@ export default function IncidentList({
               </div>
             )}
 
-            <div className="flex items-center gap-2 mt-auto" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <path d="M16 2v4M8 2v4M3 10h18"/>
-              </svg>
-              {fecha} · {hora}
+            {/* Footer: fecha + botón resolver */}
+            <div className="flex items-center justify-between gap-2 flex-wrap mt-auto">
+              <div className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                </svg>
+                {fecha} · {hora}
+              </div>
+              {!incident.resolved && (
+                <ResolveIncidentModal
+                  incidentId={incident.id}
+                  trigger={
+                    <button 
+                      className="neu-btn text-xs px-3 py-1 spring-interactive" 
+                      style={{ 
+                        fontSize: '0.75rem',
+                        background: 'var(--glass-bg)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid var(--glass-border)',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 12l2 2 4-4"/>
+                        <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.68.94 6.36 2.64"/>
+                      </svg>
+                      Resolver
+                    </button>
+                  }
+                />
+              )}
             </div>
           </article>
         )
