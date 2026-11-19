@@ -1,8 +1,8 @@
 'use client'
 
-import { useActionState, useState } from 'react'
-import { loginAction, type LoginState } from '@/lib/actions/auth'
-import { motion } from 'framer-motion'
+import { useActionState, useState, useTransition } from 'react'
+import { loginAction, guestLoginAction, type LoginState } from '@/lib/actions/auth'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
 const initialState: LoginState = { error: null }
@@ -10,6 +10,25 @@ const initialState: LoginState = { error: null }
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(loginAction, initialState)
   const [showPassword, setShowPassword] = useState(false)
+  const [guestError, setGuestError] = useState<string | null>(null)
+  const [showGuestWarning, setShowGuestWarning] = useState(false)
+  const [isGuestPending, startGuestTransition] = useTransition()
+
+  function handleGuestClick() {
+    // Primero mostrar el aviso; el botón de confirmar ejecuta la acción
+    setShowGuestWarning(true)
+  }
+
+  function handleGuestConfirm() {
+    setGuestError(null)
+    startGuestTransition(async () => {
+      const result = await guestLoginAction()
+      if (result && 'error' in result) {
+        setGuestError(result.error)
+        setShowGuestWarning(false)
+      }
+    })
+  }
 
   return (
     <div
@@ -26,7 +45,6 @@ export default function LoginPage() {
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full"
                style={{ boxShadow: 'var(--shadow-soft-raised)', background: 'var(--surface)' }}>
-            {/* SVG inline — SKILL: thin outline, no fill, no container */}
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
                  stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -138,7 +156,7 @@ export default function LoginPage() {
             {/* Botón primario */}
             <button
               type="submit"
-              disabled={pending}
+              disabled={pending || isGuestPending}
               className="neu-btn-primary w-full justify-center"
               style={{ opacity: pending ? 0.7 : 1 }}
             >
@@ -164,6 +182,55 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* Separador */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }} />
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>O</span>
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }} />
+          </div>
+
+          {/* Botón modo demo */}
+          {guestError && (
+            <p className="text-xs text-center mb-3 p-2 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+              {guestError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleGuestClick}
+            disabled={pending || isGuestPending}
+            className="neu-btn w-full justify-center"
+            style={{
+              opacity: isGuestPending ? 0.7 : 1,
+              color: 'var(--text-secondary)',
+              fontSize: '0.875rem',
+            }}
+          >
+            {isGuestPending ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                     className="animate-spin">
+                  <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" strokeOpacity=".3"/>
+                  <path d="M12 3a9 9 0 0 1 9 9"/>
+                </svg>
+                Cargando demo…
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                  <path d="M10 17l5-5-5-5"/>
+                  <path d="M15 12H3"/>
+                  <path d="M3 8V6a2 2 0 0 1 2-2h2"/>
+                  <path d="M3 16v2a2 2 0 0 0 2 2h2"/>
+                </svg>
+                Entrar sin sesión (Demo)
+              </>
+            )}
+          </button>
+
           {/* Enlace a registro */}
           <p className="text-center mt-6" style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
             ¿No tienes cuenta?{' '}
@@ -177,6 +244,87 @@ export default function LoginPage() {
           EventPulse AI © 2026 — Plataforma B2B de gestión de eventos
         </p>
       </motion.div>
+
+      {/* Modal de confirmación para modo demo */}
+      <AnimatePresence>
+        {showGuestWarning && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowGuestWarning(false)}
+              className="fixed inset-0"
+              style={{ background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(8px)' }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+              className="neu-card w-full max-w-sm relative z-10 flex flex-col gap-5"
+              style={{
+                padding: '28px',
+                background: 'var(--surface-raised)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '24px',
+              }}
+            >
+              {/* Icono advertencia */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                     style={{ background: 'rgba(245,158,11,0.15)', boxShadow: 'var(--shadow-soft-raised)' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                       stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 style={{ fontFamily: 'var(--font-nunito)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                    Modo Demostración
+                  </h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Datos compartidos de prueba
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl flex flex-col gap-2"
+                   style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                  ⚠️ Estás a punto de entrar en una <strong>cuenta de demostración compartida</strong>. Ten en cuenta:
+                </p>
+                <ul style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.7, paddingLeft: '1.1rem', listStyleType: 'disc' }}>
+                  <li>Cualquier dato que crees es visible para <strong>otros usuarios demo</strong>.</li>
+                  <li>Los datos pueden ser eliminados o reiniciados en cualquier momento.</li>
+                  <li>No ingreses información personal o confidencial.</li>
+                  <li>Para guardar tu trabajo de forma permanente, <strong>crea una cuenta propia</strong>.</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowGuestWarning(false)}
+                  className="neu-btn flex-1 justify-center py-2.5 text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGuestConfirm}
+                  className="neu-btn-primary flex-1 justify-center py-2.5 text-sm font-bold"
+                  style={{ background: '#f59e0b', boxShadow: '0 0 12px rgba(245,158,11,0.3)' }}
+                >
+                  Entrar de todas formas
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

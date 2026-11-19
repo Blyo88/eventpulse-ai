@@ -24,8 +24,8 @@ export class AuthError extends Error {
 
 /**
  * Obtiene el usuario autenticado y la primera organización a la que pertenece.
- * La consulta de membership se hace con service role porque el helper corre en
- * servidor; todas las operaciones posteriores reciben explícitamente ese orgId.
+ * Si el usuario no tiene ninguna organización, se le crea automáticamente una
+ * organización personal y un membership como owner.
  */
 export async function getAuthUser(): Promise<AuthContext> {
   const supabase = await createClient()
@@ -46,6 +46,32 @@ export async function getAuthUser(): Promise<AuthContext> {
 
   if (membershipError) {
     console.error('Error buscando la organización del usuario:', membershipError.message)
+  }
+
+  // Si el usuario existe pero no tiene organización, crearle una automáticamente
+  if (!membership?.organization_id && user.email) {
+    try {
+      const orgName = (user.email.split('@')[0] || 'Mi') + ' Workspace'
+      const { data: newOrg } = await admin
+        .from('organizations')
+        .insert({ name: orgName })
+        .select('id')
+        .single()
+
+      if (newOrg) {
+        await admin.from('organization_members').insert({
+          organization_id: newOrg.id,
+          user_id: user.id,
+          role: 'owner',
+        })
+        // Asegurarse de que el perfil exista
+        await admin.from('profiles').upsert({ id: user.id, email: user.email }, { onConflict: 'id' })
+
+        return { user, userId: user.id, organizationId: newOrg.id }
+      }
+    } catch (err) {
+      console.error('Error creando organización automática:', err)
+    }
   }
 
   return {
